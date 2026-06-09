@@ -152,7 +152,7 @@ export interface ClaimDetail {
 }
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`/api${path}`);
+  const res = await fetch(`/api/v1${path}`);
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
   return res.json();
 }

@@ -1,10 +1,11 @@
 using Dapper;
 using MySqlConnector;
+using OpenDentalSidecar.Api.Data.Interfaces;
 using OpenDentalSidecar.Api.Models;
 
 namespace OpenDentalSidecar.Api.Data;
 
-public class ProcedureRepository
+public class ProcedureRepository : IProcedureRepository
 {
     private readonly string _connStr;
     public ProcedureRepository(string connStr) => _connStr = connStr;

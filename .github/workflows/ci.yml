@@ -6,12 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  ConnectionStrings__OpenDental: Server=localhost;Port=3306;Database=opendental;User=reader;Password=ci_dummy
+  FRONTEND_URL: http://localhost:3000
+
 jobs:
   backend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: ./backend/OpenDentalSidecar.Api
 
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +31,8 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Docker build (backend)
-        run: docker build -t opendental-sidecar-backend -f OpenDentalSidecar.Api/Dockerfile OpenDentalSidecar.Api/
+      - name: Docker build
+        run: docker build -t opendental-sidecar-backend .
 
   frontend:
     runs-on: ubuntu-latest
@@ -54,10 +58,8 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:5000
 
-      - name: Docker build (frontend)
+      - name: Docker build
         run: docker build -t opendental-sidecar-frontend .
 
   docker-compose:
@@ -67,10 +69,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate docker-compose config
+      - name: Validate config
         run: docker compose config
 
       - name: Build all images
         run: docker compose build
-        env:
-          ConnectionStrings__OpenDental: Server=mysql;Port=3306;Database=opendental;User=reader;Password=ci_test

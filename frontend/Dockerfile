@@ -1,10 +1,7 @@
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
+# ── Builder ──────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
+
 ARG API_PROXY_TARGET=http://backend:8080
 ENV API_PROXY_TARGET=$API_PROXY_TARGET
 
@@ -13,6 +10,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# ── Runner ───────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -27,7 +25,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 EXPOSE 3000
-
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 

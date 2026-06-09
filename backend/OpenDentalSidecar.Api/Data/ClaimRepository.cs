@@ -1,10 +1,11 @@
 using Dapper;
 using MySqlConnector;
+using OpenDentalSidecar.Api.Data.Interfaces;
 using OpenDentalSidecar.Api.Models;
 
 namespace OpenDentalSidecar.Api.Data;
 
-public class ClaimRepository
+public class ClaimRepository : IClaimRepository
 {
     private readonly string _connStr;
     public ClaimRepository(string connStr) => _connStr = connStr;

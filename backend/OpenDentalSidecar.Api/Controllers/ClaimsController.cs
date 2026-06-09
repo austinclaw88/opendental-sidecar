@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
-using OpenDentalSidecar.Api.Data;
+using OpenDentalSidecar.Api.Data.Interfaces;
 using OpenDentalSidecar.Api.Models;
 
 namespace OpenDentalSidecar.Api.Controllers;
 
 [ApiController]
-[Route("api/claims")]
+[Route("api/v1/claims")]
 public class ClaimsController : ControllerBase
 {
-    private readonly ClaimRepository _claims;
+    private readonly IClaimRepository _claims;
 
-    public ClaimsController(ClaimRepository claims) => _claims = claims;
+    public ClaimsController(IClaimRepository claims) => _claims = claims;
 
     [HttpGet("{claimNum}")]
     public async Task<ActionResult<ClaimDetailDto>> GetClaim(long claimNum)

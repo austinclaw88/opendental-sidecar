@@ -1,23 +1,23 @@
 using Microsoft.AspNetCore.Mvc;
-using OpenDentalSidecar.Api.Data;
+using OpenDentalSidecar.Api.Data.Interfaces;
 using OpenDentalSidecar.Api.Models;
 
 namespace OpenDentalSidecar.Api.Controllers;
 
 [ApiController]
-[Route("api/patients")]
+[Route("api/v1/patients")]
 public class PatientsController : ControllerBase
 {
-    private readonly PatientRepository _patients;
-    private readonly AppointmentRepository _appointments;
-    private readonly ProcedureRepository _procedures;
-    private readonly ClaimRepository _claims;
+    private readonly IPatientRepository _patients;
+    private readonly IAppointmentRepository _appointments;
+    private readonly IProcedureRepository _procedures;
+    private readonly IClaimRepository _claims;
 
     public PatientsController(
-        PatientRepository patients,
-        AppointmentRepository appointments,
-        ProcedureRepository procedures,
-        ClaimRepository claims)
+        IPatientRepository patients,
+        IAppointmentRepository appointments,
+        IProcedureRepository procedures,
+        IClaimRepository claims)
     {
         _patients = patients;
         _appointments = appointments;
