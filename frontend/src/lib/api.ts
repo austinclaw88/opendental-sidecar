@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+// Uses relative URLs — Next.js rewrites proxy /api/* to the backend.
+// In dev (no Docker): set API_PROXY_TARGET=http://localhost:5000 in .env.local
+// In Docker: the compose file sets it to http://backend:8080
 
 export interface PatientSummary {
   patNum: number;
@@ -32,7 +34,6 @@ export interface PatientDetail {
   middleI?: string;
   preferred?: string;
   birthdate?: string;
-  ssn?: string;
   address?: string;
   address2?: string;
   city?: string;
@@ -124,7 +125,6 @@ export interface ClaimProc {
 export interface ClaimPayment {
   claimPaymentNum: number;
   claimNum: number;
-  payNum?: number;
   payAmt: number;
   datePay?: string;
   checkNum?: string;
@@ -152,7 +152,7 @@ export interface ClaimDetail {
 }
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}/api${path}`);
+  const res = await fetch(`/api${path}`);
   if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
   return res.json();
 }

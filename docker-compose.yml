@@ -1,0 +1,57 @@
+services:
+  backend:
+    build:
+      context: ./backend/OpenDentalSidecar.Api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__OpenDental=${ConnectionStrings__OpenDental:?error}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - sidecar
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_PROXY_TARGET: http://backend:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sidecar
+
+  # Optional: demo MySQL database for development/testing
+  # docker compose --profile demo up -d
+  demo-db:
+    profiles: ["demo"]
+    image: mysql:8.0
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: demoroot
+      MYSQL_DATABASE: opendental
+      MYSQL_USER: reader
+      MYSQL_PASSWORD: demoreader
+    volumes:
+      - ./seed:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sidecar
+
+networks:
+  sidecar:
+    driver: bridge

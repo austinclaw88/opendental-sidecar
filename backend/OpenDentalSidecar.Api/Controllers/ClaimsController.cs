@@ -8,14 +8,14 @@ namespace OpenDentalSidecar.Api.Controllers;
 [Route("api/claims")]
 public class ClaimsController : ControllerBase
 {
-    private readonly OpenDentalRepository _repo;
+    private readonly ClaimRepository _claims;
 
-    public ClaimsController(OpenDentalRepository repo) => _repo = repo;
+    public ClaimsController(ClaimRepository claims) => _claims = claims;
 
     [HttpGet("{claimNum}")]
     public async Task<ActionResult<ClaimDetailDto>> GetClaim(long claimNum)
     {
-        var claim = await _repo.GetClaimDetail(claimNum);
+        var claim = await _claims.GetDetail(claimNum);
         if (claim == null) return NotFound();
         return Ok(claim);
     }

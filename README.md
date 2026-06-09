@@ -5,72 +5,52 @@ Modern read-only web interface for OpenDental. Phase 1 — viewer only, no write
 ## Architecture
 
 ```
-┌──────────────────────┐       ┌──────────────────────┐       ┌──────────────┐
-│  Next.js (React)     │──────▶│  ASP.NET Core 8 API   │──────▶│  OpenDental   │
-│  Patient Search      │       │  Dapper + DTOs        │       │  MySQL DB    │
-│  Patient Profile     │◀──────│  Read-only MySQL user │◀──────│  (local)      │
-│  Appointments        │       └──────────────────────┘       └──────────────┘
-│  Procedures          │
-│  Claims Dashboard    │
-└──────────────────────┘
+┌────────────┐     ┌──────────────┐     ┌──────────┐
+│  Next.js   │────▶│  ASP.NET 8   │────▶│  MySQL   │
+│  Container │     │  API         │     │  (host)  │
+│  :3000     │◀────│  Container   │     │          │
+└────────────┘     │  :8080       │     └──────────┘
+                   └──────────────┘
 ```
-
-## Prerequisites
-
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- [Node.js 20+](https://nodejs.org)
-- A running OpenDental MySQL database
 
 ## Quick Start
 
-### 1. Configure the Database
-
-Create a read-only MySQL user and grant SELECT on the OpenDental database:
-
-```sql
-CREATE USER 'reader'@'%' IDENTIFIED BY 'reader';
-GRANT SELECT ON opendental.* TO 'reader'@'%';
-FLUSH PRIVILEGES;
-```
-
-### 2. Configure the Backend
-
-Edit `backend/OpenDentalSidecar.Api/appsettings.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "OpenDental": "Server=localhost;Port=3306;Database=opendental;User=reader;Password=reader;Allow User Variables=True;Default Command Timeout=120;"
-  }
-}
-```
-
-### 3. Start the Backend
+### Option A: Real OpenDental DB
 
 ```bash
-cd backend
-dotnet run --project OpenDentalSidecar.Api
+# 1. Create a read-only MySQL user on your OpenDental server:
+#    CREATE USER 'reader'@'%' IDENTIFIED BY 'your_password';
+#    GRANT SELECT ON opendental.* TO 'reader'@'%';
+
+# 2. Start with your real DB:
+cp .env.example .env
+# Edit .env with your MySQL connection string
+docker compose up
 ```
 
-The API starts on `http://localhost:5000`. Swagger UI at `/swagger`.
-
-### 4. Configure the Frontend
-
-Create `frontend/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:5000
-```
-
-### 5. Start the Frontend
+### Option B: Demo DB (no existing OpenDental needed)
 
 ```bash
-cd frontend
-npm install
-npm run dev
+docker compose --profile demo up
 ```
 
-The app opens at `http://localhost:3000`.
+This spins up:
+- A MySQL 8.0 container with sanitized demo data (10 patients, appointments, claims)
+- The backend API
+- The frontend
+
+Open `http://localhost:3000`.
+
+### Configuration
+
+All configuration via environment variables (see `.env.example`):
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ConnectionStrings__OpenDental` | Yes | — | MySQL connection string |
+| `FRONTEND_URL` | No | `http://localhost:3000` | CORS origin |
+
+No hardcoded passwords. No secrets in source.
 
 ## Screens
 
@@ -83,26 +63,21 @@ The app opens at `http://localhost:3000`.
 | Claims Dashboard | `/patients/{patNum}` (tab) | Open/sent/unsent claims with status |
 | Claim Detail | `/claims/{claimNum}` | Full claim breakdown with line items |
 
-## Phase 1 — Read-Only Scope
-
-No writes, no claim submissions, no appointment modifications, no insurance calculations.
-
-**Non-goals (future phases):**
-- Patient editing
-- Appointment creation/modification
-- Claim submission
-- Insurance calculations
-- eclaims / X12 integration
-- Treatment planning logic
-
 ## Tech Stack
 
-- **Backend:** ASP.NET Core 8, Dapper, MySqlConnector, Swashbuckle
-- **Frontend:** Next.js 15, React 19, Tailwind CSS 4, shadcn/ui, Lucide icons
-- **Design:** Soft UI + Minimalism — pine green primary, slate background
+- **Backend:** ASP.NET Core 8, Dapper, MySqlConnector
+- **Frontend:** Next.js 15, React 19, Tailwind CSS 4, shadcn/ui, Lucide
+- **Infrastructure:** Docker Compose, GitHub Actions CI
 
-## Database Schema
+## Security
 
-The API maps to the OpenDental MySQL schema (28 core tables). Primary keys follow `[Entity]Num` convention. Status codes are mapped from OpenDental's C# enums.
+- Read-only MySQL user (no write access to the database)
+- CORS locked to the frontend origin
+- Swagger disabled in production
+- Audit logging (structured JSONL, daily rotation)
+- SSN excluded from all API responses
+- Auth scaffolding ready for Phase 2
 
-Key tables: `patient`, `appointment`, `procedurelog`, `procedurecode`, `claim`, `claimproc`, `claimpayment`, `insplan`, `inssub`, `patplan`, `carrier`, `provider`, `definition`, `operatory`, `clinic`
+## CI
+
+GitHub Actions builds both containers, runs linting, and verifies the Docker Compose configuration on every push.

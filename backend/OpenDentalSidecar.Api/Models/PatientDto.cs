@@ -24,7 +24,7 @@ public record PatientDetailDto
     public string? MiddleI { get; init; }
     public string? Preferred { get; init; }
     public DateTime? Birthdate { get; init; }
-    public string? SSN { get; init; }
+    // SSN intentionally excluded — PHI minimization
     public string? Address { get; init; }
     public string? Address2 { get; init; }
     public string? City { get; init; }
