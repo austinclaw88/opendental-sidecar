@@ -1,0 +1,3 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,ClaimFee,InsPayAmt,ClaimStatus,ClaimStatusDesc,ClaimType,MissingReasons,HasDocumentTable,HasSheetTable,HasTaskTable,Note
+10001,3,"Williams, Mike",Sun Life,2025-12-15,4800.0,0.0,S,Sent,PreAuth,Empty ClaimNote,True,False,False,APPROXIMATE
+12002,7,"Miller, James",Sun Life Financial,2026-01-15,890.0,0.0,S,Sent,P,Empty ClaimNote,True,False,False,APPROXIMATE

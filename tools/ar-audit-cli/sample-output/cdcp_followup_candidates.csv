@@ -1,0 +1,4 @@
+ClaimNum,PatNum,PatientName,CarrierName,GroupName,DateService,DateSent,ClaimFee,InsPayAmt,InsPayEst,BalanceRemaining,DaysOutstanding,ClaimStatus,ClaimStatusDesc,ClaimType,FollowUpReason,UnreceivedProcs,ReceivedProcs,SupplementalProcs,PriorityScore
+12001,3,"Williams, Mike",Sun Life,CDCP,2025-12-10,2025-12-14,4800.0,0.0,3500.0,4800.0,182,S,Sent,PreAuth,Predetermination — no response yet,2,0,0,62
+12003,13,"Thomas, Kevin",Sun Life,CDCP,2026-03-05,2026-03-08,1450.0,300.0,1200.0,1150.0,97,R,Received,P,Paid below estimate,1,1,0,38
+12002,7,"Miller, James",Sun Life Financial,Federal Plan,2026-01-15,2026-01-20,890.0,0.0,650.0,890.0,146,S,Sent,P,"Claim sent, no payment received",2,0,0,34

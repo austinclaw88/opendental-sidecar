@@ -1,0 +1,189 @@
+{
+  "generated_at": "2026-06-10T02:45:59.807486",
+  "summary": {
+    "visible_insurance_ar": 4970.0,
+    "likely_recoverable_candidates": 3420.0,
+    "questionable_dead_ar": 1550.0,
+    "high_priority_claim_count": 14,
+    "top_carrier_by_stuck_balance": "Cigna Dental PPO",
+    "top_carrier_balance": 1950.0,
+    "total_aged_claims": 15,
+    "total_no_payment_claims": 5,
+    "total_denied_claims": 3,
+    "total_unfiled_secondary_candidates": 2,
+    "total_completed_unbilled_procs": 2,
+    "total_underpayment_candidates": 2,
+    "total_dead_ar_claims": 3,
+    "aging_buckets": {
+      "0-30": 75.0,
+      "31-60": 295.0,
+      "61-90": 660.0,
+      "91-120": 500.0,
+      "120+": 3440.0
+    }
+  },
+  "carrier_breakdown": [
+    {
+      "Carrier": "Cigna Dental PPO",
+      "CandidateBalance": 1950.0,
+      "ClaimCount": 2,
+      "AvgAgeDays": 225.0
+    },
+    {
+      "Carrier": "Canada Life",
+      "CandidateBalance": 890.0,
+      "ClaimCount": 1,
+      "AvgAgeDays": 200.0
+    },
+    {
+      "Carrier": "Delta Dental Premier",
+      "CandidateBalance": 660.0,
+      "ClaimCount": 2,
+      "AvgAgeDays": 80.0
+    },
+    {
+      "Carrier": "Guardian Dental",
+      "CandidateBalance": 600.0,
+      "ClaimCount": 2,
+      "AvgAgeDays": 160.0
+    },
+    {
+      "Carrier": "Manulife",
+      "CandidateBalance": 350.0,
+      "ClaimCount": 1,
+      "AvgAgeDays": 120.0
+    },
+    {
+      "Carrier": "Sun Life",
+      "CandidateBalance": 150.0,
+      "ClaimCount": 1,
+      "AvgAgeDays": 95.0
+    },
+    {
+      "Carrier": "Green Shield",
+      "CandidateBalance": 125.0,
+      "ClaimCount": 1,
+      "AvgAgeDays": 60.0
+    },
+    {
+      "Carrier": "MetLife PDP",
+      "CandidateBalance": 120.0,
+      "ClaimCount": 2,
+      "AvgAgeDays": 47.5
+    },
+    {
+      "Carrier": "Delta Dental PPO",
+      "CandidateBalance": 75.0,
+      "ClaimCount": 2,
+      "AvgAgeDays": 25.0
+    },
+    {
+      "Carrier": "Aetna Dental",
+      "CandidateBalance": 50.0,
+      "ClaimCount": 1,
+      "AvgAgeDays": 25.0
+    }
+  ],
+  "top_10": [
+    {
+      "ClaimNum": 1012,
+      "PatientName": "Thomas, Kevin",
+      "CarrierName": "Cigna Dental PPO",
+      "EstRemaining": 1150.0,
+      "DaysOutstanding": 300,
+      "AgingBucket": "120+",
+      "PriorityScore": 95,
+      "ClaimStatus": "Sent"
+    },
+    {
+      "ClaimNum": 1002,
+      "PatientName": "Williams, Mike",
+      "CarrierName": "Cigna Dental PPO",
+      "EstRemaining": 800.0,
+      "DaysOutstanding": 150,
+      "AgingBucket": "120+",
+      "PriorityScore": 90,
+      "ClaimStatus": "Sent"
+    },
+    {
+      "ClaimNum": 1007,
+      "PatientName": "Davis, Lisa",
+      "CarrierName": "Canada Life",
+      "EstRemaining": 890.0,
+      "DaysOutstanding": 200,
+      "AgingBucket": "120+",
+      "PriorityScore": 85,
+      "ClaimStatus": "Not Sent"
+    },
+    {
+      "ClaimNum": 1009,
+      "PatientName": "Martinez, Anna",
+      "CarrierName": "Manulife",
+      "EstRemaining": 350.0,
+      "DaysOutstanding": 120,
+      "AgingBucket": "91-120",
+      "PriorityScore": 85,
+      "ClaimStatus": "Received"
+    },
+    {
+      "ClaimNum": 1004,
+      "PatientName": "Jones, David",
+      "CarrierName": "Guardian Dental",
+      "EstRemaining": 400.0,
+      "DaysOutstanding": 180,
+      "AgingBucket": "120+",
+      "PriorityScore": 80,
+      "ClaimStatus": "Sent"
+    },
+    {
+      "ClaimNum": 1001,
+      "PatientName": "Johnson, Sarah",
+      "CarrierName": "Delta Dental Premier",
+      "EstRemaining": 480.0,
+      "DaysOutstanding": 75,
+      "AgingBucket": "61-90",
+      "PriorityScore": 70,
+      "ClaimStatus": "Sent"
+    },
+    {
+      "ClaimNum": 1014,
+      "PatientName": "White, Daniel",
+      "CarrierName": "Guardian Dental",
+      "EstRemaining": 200.0,
+      "DaysOutstanding": 140,
+      "AgingBucket": "120+",
+      "PriorityScore": 70,
+      "ClaimStatus": "Not Sent"
+    },
+    {
+      "ClaimNum": 1006,
+      "PatientName": "Miller, James",
+      "CarrierName": "Sun Life",
+      "EstRemaining": 150.0,
+      "DaysOutstanding": 95,
+      "AgingBucket": "91-120",
+      "PriorityScore": 65,
+      "ClaimStatus": "Sent"
+    },
+    {
+      "ClaimNum": 1000,
+      "PatientName": "Smith, John",
+      "CarrierName": "Delta Dental PPO",
+      "EstRemaining": 50.0,
+      "DaysOutstanding": 35,
+      "AgingBucket": "31-60",
+      "PriorityScore": 60,
+      "ClaimStatus": "Received"
+    },
+    {
+      "ClaimNum": 1008,
+      "PatientName": "Rodriguez, Carlos",
+      "CarrierName": "Green Shield",
+      "EstRemaining": 125.0,
+      "DaysOutstanding": 60,
+      "AgingBucket": "31-60",
+      "PriorityScore": 60,
+      "ClaimStatus": "Received"
+    }
+  ]
+}

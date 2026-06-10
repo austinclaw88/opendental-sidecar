@@ -1,0 +1,16 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,ClaimFee,InsPayAmt,EstRemaining,DaysOutstanding,AgingBucket,ClaimStatus,ClaimStatusDesc,ClaimType,DateSent,DateReceived
+1000,1,"Smith, John",Delta Dental PPO,2026-05-06,250.0,200.0,50.0,35,31-60,R,Received,P,2026-05-09,2026-05-20
+1001,2,"Johnson, Sarah",Delta Dental Premier,2026-03-27,480.0,0.0,480.0,75,61-90,S,Sent,P,2026-03-30,2026-04-10
+1002,3,"Williams, Mike",Cigna Dental PPO,2026-01-11,1200.0,400.0,800.0,150,120+,S,Sent,P,2026-01-14,2026-01-25
+1003,4,"Brown, Emily",MetLife PDP,2026-04-26,175.0,125.0,50.0,45,31-60,R,Received,S,2026-04-29,2026-05-10
+1004,5,"Jones, David",Guardian Dental,2025-12-12,2200.0,1800.0,400.0,180,120+,S,Sent,P,2025-12-15,2025-12-26
+1005,6,"Garcia, Maria",Aetna Dental,2026-05-16,350.0,300.0,50.0,25,0-30,R,Received,P,2026-05-19,2026-05-30
+1006,7,"Miller, James",Sun Life,2026-03-07,650.0,500.0,150.0,95,91-120,S,Sent,P,2026-03-10,2026-03-21
+1007,8,"Davis, Lisa",Canada Life,2025-11-22,890.0,0.0,890.0,200,120+,U,Not Sent,P,2025-11-25,2025-12-06
+1008,9,"Rodriguez, Carlos",Green Shield,2026-04-11,525.0,400.0,125.0,60,31-60,R,Received,S,2026-04-14,2026-04-25
+1009,10,"Martinez, Anna",Manulife,2026-02-10,1600.0,1250.0,350.0,120,91-120,R,Received,P,2026-02-13,2026-02-24
+1010,11,"Anderson, Robert",Delta Dental PPO,2026-05-26,300.0,275.0,25.0,15,0-30,W,Waiting to Send,P,2026-05-29,2026-06-09
+1011,12,"Taylor, Susan",Delta Dental Premier,2026-03-17,780.0,600.0,180.0,85,61-90,S,Sent,S,2026-03-20,2026-03-31
+1012,13,"Thomas, Kevin",Cigna Dental PPO,2025-08-14,1450.0,300.0,1150.0,300,120+,S,Sent,P,2025-08-17,2025-08-28
+1013,14,"Jackson, Rachel",MetLife PDP,2026-04-21,420.0,350.0,70.0,50,31-60,R,Received,P,2026-04-24,2026-05-05
+1014,15,"White, Daniel",Guardian Dental,2026-01-21,950.0,750.0,200.0,140,120+,U,Not Sent,S,2026-01-24,2026-02-04

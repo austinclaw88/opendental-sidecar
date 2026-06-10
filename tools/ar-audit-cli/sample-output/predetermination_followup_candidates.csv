@@ -1,0 +1,6 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,DateSent,ClaimFee,InsPayEst,DaysOutstanding,StaleLevel,ClaimStatus,ClaimStatusDesc,PreauthCodes,PreauthDescriptions,ProcCode,ProcDescript,ToothNum,Surf,HasFutureAppointment,RecentCommCount,PriorityScore
+10001,3,"Williams, Mike",Sun Life,2025-12-15,2025-12-18,4800.0,3500.0,177,critical,S,Sent,"D6240,D6750",Porc crown; Porc crown high noble,D6240,Porcelain crown,14,,False,0,66
+10002,7,"Miller, James",Canada Life,2026-02-01,2026-02-05,3200.0,2100.0,129,critical,R,Received,"D5211,D5110",Max partial denture; Complete denture mand,D5211,Maxillary partial denture,,,False,1,56
+10003,10,"Martinez, Anna",Sun Life,2026-04-10,2026-04-12,1800.0,1400.0,61,overdue,S,Sent,"D2750,D2950",Crown PFM high; Core bld up inc pins,D2750,Crown — porcelain fused to high noble metal,19,,False,0,49
+10005,5,"Jones, David",Manulife,2026-05-20,2026-05-22,6500.0,5200.0,21,stale,P,Probably Sent,"D7220,D7230",Molar extraction; Impacted wisdom tooth,D7220,"Extraction, impacted tooth, soft tissue",16,,False,0,45
+10004,13,"Thomas, Kevin",Green Shield Canada,2026-05-01,2026-05-03,2500.0,1800.0,40,stale,S,Sent,D7210,Extraction erupted tooth,D7210,"Extraction, erupted tooth requiring removal",1,,True,2,33

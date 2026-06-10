@@ -1,0 +1,5 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,DateSent,ClaimFee,InsPayAmt,WriteOff,DedApplied,PatientPayments,InsuranceBalance,NetReceivable,DaysOutstanding,AgingBucket,ClaimStatus,ClaimStatusDesc,ClaimType,ReceivedProcCount,UnreceivedProcCount,Note,PriorityScore
+11001,3,"Williams, Mike",Sun Life,2025-12-10,2025-12-14,1200.0,0.0,0.0,0.0,200.0,1200.0,1000.0,182,90+,S,Sent,P,0,3,APPROXIMATE,31
+11004,10,"Martinez, Anna",Sun Life,2026-04-01,2026-04-05,1600.0,800.0,200.0,100.0,100.0,800.0,700.0,70,61-90,R,Received,P,2,0,APPROXIMATE,26
+11003,13,"Thomas, Kevin",Green Shield Canada,2026-03-05,2026-03-08,1450.0,300.0,100.0,50.0,0.0,1150.0,1150.0,97,90+,R,Received,P,1,1,APPROXIMATE,13
+11002,7,"Miller, James",Canada Life,2026-01-15,2026-01-20,890.0,0.0,0.0,0.0,0.0,890.0,890.0,146,90+,S,Sent,P,0,2,APPROXIMATE,9

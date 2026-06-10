@@ -1,0 +1,6 @@
+ProcNum,PatNum,PatientName,ProcDate,ProcFee,ValueTier,ProcCode,ProcDescript,ToothNum,Surf,ProviderAbbr,DaysSincePlanned,FollowUpGap,HasPredetermination,PredetInsPayEst,HasPlannedAppointment,HasOtherAppointments,HasRecentCommunication,HasInsurance,PriorityScore
+6001,3,"Williams, Mike",2025-12-15,4800.0,high,D6240,Porcelain crown,14,,JSM,177,critical,True,3500.0,False,False,False,True,59
+6004,8,"Davis, Lisa",2026-03-01,3500.0,high,D5225,Lower partial denture,,,JSM,101,critical,False,0.0,False,True,False,True,52
+6003,5,"Jones, David",2026-05-20,6500.0,premium,D7220,Surgical extraction,16,,AC,21,recent,True,5200.0,False,False,False,True,45
+6002,10,"Martinez, Anna",2026-04-10,1800.0,medium,D2750,Crown PFM high noble,19,,JSM,61,aging,True,1400.0,False,False,False,True,43
+6005,15,"White, Daniel",2026-04-05,1500.0,medium,D4341,Periodontal scaling and root planing,,,DH,66,aging,False,0.0,False,False,True,True,36

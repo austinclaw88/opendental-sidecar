@@ -1,0 +1,3 @@
+PatNum,PatientName,PrimaryCarrier,SecondaryCarrier,PrimaryClaimNum,PrimaryClaimFee,PrimaryInsPayAmt,DateService,DateReceived,PrimaryStatus,HasSecondaryClaim,HasSecondaryClaimProc,Note
+4,"Brown, Emily",MetLife PDP,Guardian Dental,1004,175.0,125.0,2026-04-10,2026-04-28,R,False,False,Primary paid — secondary may need filing
+9,"Rodriguez, Carlos",Delta Dental Premier,Aetna Dental,1009,525.0,400.0,2026-03-05,2026-03-22,R,True,False,Secondary claim exists but may be unpaid

@@ -1,0 +1,4 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,DateSent,ClaimFee,InsPayAmt,DaysSinceSent,ClaimStatus,ClaimStatusDesc,ClaimType,GapSignals,RecentCommCount,FutureApptCount,HasTaskTable,OpenTaskCount,LastCommDate,PriorityScore
+10001,3,"Williams, Mike",Sun Life,2025-12-15,2025-12-18,4800.0,0.0,174,S,Sent,PreAuth,No communication in 60 days; Predet with no scheduled appointment; No open tasks for this claim,0,0,True,0,Never,47
+10002,7,"Miller, James",Canada Life,2026-02-01,2026-02-05,3200.0,0.0,125,R,Received,PreAuth,No communication in 60 days; Predet with no scheduled appointment; No open tasks for this claim,1,0,True,0,2026-05-01,42
+11001,3,"Williams, Mike",Sun Life,2025-12-10,2025-12-14,1200.0,0.0,178,S,Sent,P,No communication in 60 days; No open tasks for this claim,0,0,True,0,Never,28

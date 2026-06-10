@@ -1,0 +1,3 @@
+ProcNum,PatNum,PatientName,ProcDate,ProcFee,ProcCode,ProcDescript,ToothNum,Surf,AnyClaimProcCount,Note
+5001,6,"Garcia, Maria",2026-05-15,350.0,D2391,"Resin composite, one surface, posterior",30,O,0,NEEDS HUMAN REVIEW — no claim found for completed procedure
+5002,12,"Taylor, Susan",2026-05-10,275.0,D2330,"Resin composite, one surface, anterior",9,M,0,NEEDS HUMAN REVIEW — no claim found for completed procedure

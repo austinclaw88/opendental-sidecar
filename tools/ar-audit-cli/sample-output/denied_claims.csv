@@ -1,0 +1,4 @@
+ClaimNum,PatNum,PatientName,CarrierName,DateService,DateSent,ClaimFee,InsPayAmt,ClaimStatus,ClaimStatusDesc,DenialSignal,UnreceivedProcCount
+3001,4,"Brown, Emily",MetLife PDP,2025-11-20,2025-11-25,175.0,0.0,R,Received,Received with zero payment,2
+3002,11,"Anderson, Robert",Canada Life,2025-10-05,2025-10-10,300.0,0.0,S,Sent,Unreceived claimprocs after 45+ days,1
+3003,14,"Jackson, Rachel",Sun Life,2025-09-15,2025-09-20,420.0,0.0,I,Hold (In Process),In-process limbo > 60 days,0

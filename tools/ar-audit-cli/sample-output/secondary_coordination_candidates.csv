@@ -1,0 +1,4 @@
+PatNum,PatientName,PlanCount,AllCarriers,CobRule,PaidPrimaryFees,PaidSecondaryCount,PrimaryPaidNoSecondaryFees,Issues
+4,"Brown, Emily",2,Sun Life / Manulife,Standard,2450.0,0,1200.0,"$1,200.00 primary paid, no secondary claim filed"
+9,"Rodriguez, Carlos",2,Canada Life / Sun Life,Coordinated,3800.0,0,3800.0,"$3,800.00 primary paid, no secondary claim filed; No secondary claims found in last year"
+12,"Taylor, Susan",2,Green Shield Canada / Manulife,Standard,900.0,1,350.0,"$350.00 primary paid, no secondary claim filed"
