@@ -18,7 +18,7 @@ public class AppointmentRepository : IAppointmentRepository
             SELECT a.AptNum, a.PatNum, a.ProvNum, a.Op AS OperatoryNum,
                    a.AptDateTime, a.AptStatus, a.Note, a.ProcDescript, a.ClinicNum,
                    prov.Abbr AS ProviderName,
-                   op.Abbreviation AS OperatoryName
+                   COALESCE(op.Abbrev, op.OpName) AS OperatoryName
             FROM appointment a
             LEFT JOIN provider prov ON a.ProvNum = prov.ProvNum
             LEFT JOIN operatory op ON a.Op = op.OperatoryNum

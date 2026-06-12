@@ -111,10 +111,12 @@ public class ClaimRepository : IClaimRepository
             }).ToList();
 
         var paySql = """
-            SELECT cp.ClaimPaymentNum, cp.ClaimNum, cp.CheckAmt,
-                   cp.CheckDate, cp.CheckNum, cp.DateIssued
-            FROM claimpayment cp
-            WHERE cp.ClaimNum = @claimNum;
+            SELECT DISTINCT pay.ClaimPaymentNum, cp.ClaimNum, pay.CheckAmt,
+                   pay.CheckDate, NULL AS CheckNum, pay.CheckDate AS DateIssued
+            FROM claimproc cp
+            INNER JOIN claimpayment pay ON cp.ClaimPaymentNum = pay.ClaimPaymentNum
+            WHERE cp.ClaimNum = @claimNum AND cp.ClaimPaymentNum <> 0
+            ORDER BY pay.CheckDate DESC;
             """;
         var payments = (await db.QueryAsync(paySql, new { claimNum }))
             .Select(p => new ClaimPaymentDto
