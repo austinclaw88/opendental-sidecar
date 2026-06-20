@@ -3,12 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Stethoscope, Calendar, Syringe, FileText, Search } from "lucide-react";
+import {
+  Stethoscope,
+  CalendarDays,
+  Search,
+  PhoneCall,
+  BellRing,
+  CalendarX2,
+  FileText,
+  UserPlus,
+} from "lucide-react";
 
 const navItems = [
+  { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/", label: "Patient Search", icon: Search },
-  { href: "/appointments", label: "Appointments", icon: Calendar },
-  { href: "/procedures", label: "Procedures", icon: Syringe },
+  { href: "/patients/new", label: "New Patient", icon: UserPlus },
+  { href: "/confirmations", label: "Confirmations", icon: PhoneCall },
+  { href: "/recall", label: "Recall", icon: BellRing },
+  { href: "/unscheduled", label: "Lists (Unsched/ASAP)", icon: CalendarX2 },
   { href: "/claims", label: "Claims", icon: FileText },
 ];
 
@@ -23,7 +35,7 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="text-sm font-semibold leading-tight">Sidecar</h1>
-          <p className="text-xs text-muted-foreground">OpenDental Viewer</p>
+          <p className="text-xs text-muted-foreground">Front Desk for OpenDental</p>
         </div>
       </div>
 
@@ -53,7 +65,7 @@ export function Sidebar() {
 
       <div className="border-t px-6 py-4">
         <p className="text-[11px] text-muted-foreground">
-          Phase 1 · Read-Only
+          Phase 2 · Front Desk Read/Write
         </p>
       </div>
     </aside>

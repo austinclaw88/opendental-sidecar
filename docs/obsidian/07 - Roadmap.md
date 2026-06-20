@@ -17,7 +17,32 @@
 - [x] CI path + env fixes
 - [x] Frontend Dockerfile cleanup
 
-## Next: v1.2 — Auth + Foundation
+## Done: v1.5 — Schema-Driven Writes
+
+- [x] `SchemaIntrospector` reads live table structure from information_schema (cached)
+- [x] `OdInsertBuilder` emits full-column INSERTs / validated UPDATEs from the live schema
+- [x] All 10 write paths refactored off hardcoded column lists (fixes strict-mode 500s)
+- [x] Version-agnostic: same binary runs on OD 24-3 / 25-4 / future
+- [x] `ExceptionHandlingMiddleware` returns JSON errors with MySQL code + SQL state
+- [x] New-patient form expanded (SIN, position, contact prefs, providers, notes, billing type)
+- [x] `ExtraFields` passthrough on patient + appointment for any other column, schema-validated
+- [x] Demo seed split: `00-schema.sql` (generated full DDL) + data-only 01/02/03
+- [x] `tools/schema-gen/generate_schema.py` regenerates demo DDL from the OD XML
+- [x] Verified end-to-end against live MariaDB 10.11 in strict mode
+
+## Done: v1.3 — Front Desk Plus
+
+- [x] Insurance management (view/add/edit/drop coverage, carrier find-or-create)
+- [x] Schedule week view (`GET /schedule/range`)
+- [x] ASAP list + appointment priority flag
+- [x] Break/unschedule with reason (auto comm log entry)
+- [x] Book from recall (stamps `recall.DateScheduled`)
+- [x] Ledger adjustments (definition category 1 validated)
+- [x] Clinic-wide claims work queue with status filters and stale-claim flags
+- [x] Demo seed 03 (insurance columns, dual coverage, ASAP, extra claims)
+- [x] ESLint: React 19 strict rules downgraded to warnings (CI green)
+
+## Next: v1.4 — Auth + Foundation
 
 - [ ] Authentication (Auth0 / Clerk / Microsoft Entra)
 - [ ] Role model (user, clinic, permissions)

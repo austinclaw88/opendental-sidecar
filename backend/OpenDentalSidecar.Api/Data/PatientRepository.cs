@@ -2,13 +2,19 @@ using Dapper;
 using MySqlConnector;
 using OpenDentalSidecar.Api.Data.Interfaces;
 using OpenDentalSidecar.Api.Models;
+using OpenDentalSidecar.Api.Data.Schema;
 
 namespace OpenDentalSidecar.Api.Data;
 
 public class PatientRepository : IPatientRepository
 {
     private readonly string _connStr;
-    public PatientRepository(string connStr) => _connStr = connStr;
+    private readonly SchemaIntrospector _schema;
+    public PatientRepository(string connStr, SchemaIntrospector schema)
+    {
+        _connStr = connStr;
+        _schema = schema;
+    }
     private MySqlConnection Db() => new(_connStr);
 
     public async Task<IReadOnlyList<PatientSummaryDto>> Search(string query, int limit = 50)
@@ -119,6 +125,155 @@ public class PatientRepository : IPatientRepository
         PatStatus = (int)r.PatStatus,
         PatStatusDesc = PatientStatusDesc((int)r.PatStatus),
     };
+
+    // ── Writes ──────────────────────────────────────────────────
+
+    public async Task<long> Create(CreatePatientRequest req)
+    {
+        var columns = await _schema.GetColumns("patient");
+
+        using var db = Db();
+        await db.OpenAsync();
+        using var tx = await db.BeginTransactionAsync();
+
+        // Default billing type to the practice's first BillingTypes definition.
+        var billingType = req.BillingType ?? await db.ExecuteScalarAsync<long?>(
+            "SELECT DefNum FROM definition WHERE Category = 4 AND IsHidden = 0 ORDER BY ItemOrder LIMIT 1;",
+            transaction: tx) ?? 0;
+
+        var fields = BuildFieldDict(req, billingType);
+        var (sql, p) = OdInsertBuilder.BuildInsert("patient", columns, fields);
+        var patNum = await db.ExecuteScalarAsync<long>(sql, p, tx);
+
+        // A patient with no family becomes their own guarantor (OpenDental convention:
+        // CreateNewPatient inserts, then updates Guarantor to the new PatNum).
+        if (req.Guarantor is null or 0)
+        {
+            await db.ExecuteAsync(
+                "UPDATE patient SET Guarantor = @patNum WHERE PatNum = @patNum;",
+                new { patNum }, tx);
+        }
+
+        await tx.CommitAsync();
+        return patNum;
+    }
+
+    /// <summary>Map the typed request onto patient columns; merge validated ExtraFields on top.</summary>
+    private static Dictionary<string, object?> BuildFieldDict(CreatePatientRequest req, long billingType)
+    {
+        var f = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LName"] = req.LName.Trim(),
+            ["FName"] = req.FName.Trim(),
+            ["MiddleI"] = req.MiddleI,
+            ["Preferred"] = req.Preferred,
+            ["Gender"] = req.Gender,
+            ["Birthdate"] = req.Birthdate,
+            ["Address"] = req.Address,
+            ["Address2"] = req.Address2,
+            ["City"] = req.City,
+            ["State"] = req.State,
+            ["Zip"] = req.Zip,
+            ["HmPhone"] = req.HmPhone,
+            ["WkPhone"] = req.WkPhone,
+            ["WirelessPhone"] = req.WirelessPhone,
+            ["Email"] = req.Email,
+            ["Guarantor"] = req.Guarantor ?? 0,
+            ["PriProv"] = req.PriProv,
+            ["ClinicNum"] = req.ClinicNum,
+            ["BillingType"] = billingType,
+            ["SecDateEntry"] = DateTime.Now,
+            ["BillingCycleDay"] = 1,
+        };
+        ApplyCommonFields(f, req.Title, req.Salutation, req.Ssn, req.Position, req.ChartNumber,
+            req.Language, req.County, req.Country, req.AddrNote, req.MedUrgNote, req.ApptModNote,
+            req.FamFinUrgNote, req.EmploymentNote, req.TxtMsgOk, req.PreferContactMethod,
+            req.PreferConfirmMethod, req.PreferRecallMethod, req.SecProv, req.FeeSched,
+            req.DateFirstVisit, req.AskToArriveEarly, req.Premed);
+        MergeExtraFields(f, req.ExtraFields);
+        return f;
+    }
+
+    private static void ApplyCommonFields(Dictionary<string, object?> f,
+        string? title, string? salutation, string? ssn, int? position, string? chartNumber,
+        string? language, string? county, string? country, string? addrNote, string? medUrgNote,
+        string? apptModNote, string? famFinUrgNote, string? employmentNote, int? txtMsgOk,
+        int? preferContactMethod, int? preferConfirmMethod, int? preferRecallMethod,
+        long? secProv, long? feeSched, DateOnly? dateFirstVisit, int? askToArriveEarly, int? premed)
+    {
+        f["Title"] = title;
+        f["Salutation"] = salutation;
+        f["SSN"] = ssn;
+        f["Position"] = position;
+        f["ChartNumber"] = chartNumber;
+        f["Language"] = language;
+        f["County"] = county;
+        f["Country"] = country;
+        f["AddrNote"] = addrNote;
+        f["MedUrgNote"] = medUrgNote;
+        f["ApptModNote"] = apptModNote;
+        f["FamFinUrgNote"] = famFinUrgNote;
+        f["EmploymentNote"] = employmentNote;
+        f["TxtMsgOk"] = txtMsgOk;
+        f["PreferContactMethod"] = preferContactMethod;
+        f["PreferConfirmMethod"] = preferConfirmMethod;
+        f["PreferRecallMethod"] = preferRecallMethod;
+        f["SecProv"] = secProv;
+        f["FeeSched"] = feeSched;
+        f["DateFirstVisit"] = dateFirstVisit;
+        f["AskToArriveEarly"] = askToArriveEarly;
+        f["Premed"] = premed;
+    }
+
+    private static void MergeExtraFields(Dictionary<string, object?> f, Dictionary<string, object?>? extra)
+    {
+        if (extra == null) return;
+        foreach (var (key, value) in extra)
+            f[key] = value; // validated against the live schema by the builder
+    }
+
+    public async Task<bool> Update(long patNum, UpdatePatientRequest req)
+    {
+        var columns = await _schema.GetColumns("patient");
+
+        var f = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LName"] = req.LName,
+            ["FName"] = req.FName,
+            ["MiddleI"] = req.MiddleI,
+            ["Preferred"] = req.Preferred,
+            ["Birthdate"] = req.Birthdate,
+            ["Gender"] = req.Gender,
+            ["Address"] = req.Address,
+            ["Address2"] = req.Address2,
+            ["City"] = req.City,
+            ["State"] = req.State,
+            ["Zip"] = req.Zip,
+            ["HmPhone"] = req.HmPhone,
+            ["WkPhone"] = req.WkPhone,
+            ["WirelessPhone"] = req.WirelessPhone,
+            ["Email"] = req.Email,
+            ["PriProv"] = req.PriProv,
+            ["PatStatus"] = req.PatStatus,
+            ["ClinicNum"] = req.ClinicNum,
+            ["Guarantor"] = req.Guarantor,
+            ["BillingType"] = req.BillingType,
+        };
+        ApplyCommonFields(f, req.Title, req.Salutation, req.Ssn, req.Position, req.ChartNumber,
+            req.Language, req.County, req.Country, req.AddrNote, req.MedUrgNote, req.ApptModNote,
+            req.FamFinUrgNote, req.EmploymentNote, req.TxtMsgOk, req.PreferContactMethod,
+            req.PreferConfirmMethod, req.PreferRecallMethod, req.SecProv, req.FeeSched,
+            req.DateFirstVisit, req.AskToArriveEarly, req.Premed);
+        MergeExtraFields(f, req.ExtraFields);
+
+        // Nulls mean "unchanged" and are dropped by the builder.
+        if (f.Values.All(v => v == null)) return true;
+
+        using var db = Db();
+        var (sql, p) = OdInsertBuilder.BuildUpdate("patient", columns, patNum, f);
+        var affected = await db.ExecuteAsync(sql, p);
+        return affected > 0;
+    }
 
     private static DateTime? NullDate(object? val) =>
         val is DateTime dt && dt > new DateTime(1900, 1, 1) ? dt : null;

@@ -43,6 +43,31 @@ Running `npm run dev` without Docker requires `API_PROXY_TARGET=http://localhost
 
 **Fix:** Add a startup check that warns if the proxy target isn't set.
 
+### Schema-Driven Writes (resolved)
+
+All writes now go through `SchemaIntrospector` + `OdInsertBuilder` (`Data/Schema/`).
+At runtime the API reads each table's real columns from `information_schema` and emits
+an INSERT covering every column (auto-increment key and auto-managed timestamps excluded),
+supplying type-appropriate OpenDental defaults for anything the caller didn't set. This means:
+
+- No more "Field doesn't have a default value" under MySQL strict mode — the original
+  cause of the create-patient / create-appointment 500s.
+- The same binary works against OpenDental 24-3, 25-4, and future schema versions: it
+  adapts to whatever columns the connected database actually has.
+- Verified end-to-end against a live MariaDB 10.11 in strict mode: patient, appointment,
+  full insurance chain (carrier/insplan/inssub/patplan), adjustment, payment/paysplit,
+  commlog, and signalod inserts all succeed.
+
+Unknown columns passed via `ExtraFields` are rejected with HTTP 400 naming the column,
+rather than failing at the database. `Middleware/ExceptionHandlingMiddleware` surfaces any
+remaining `MySqlException` as JSON including the MySQL error code and SQL state.
+
+### No Benefits / Coverage Limits (P3)
+
+The insurance tab shows carrier, plan, subscriber, and ordinal but not the `benefit` table
+(annual max, deductible, coverage percentages). Receptionists quoting estimates still need
+OpenDental's family module for that. Candidate for v1.4.
+
 ## Architectural Debt
 
 ### No Service Layer

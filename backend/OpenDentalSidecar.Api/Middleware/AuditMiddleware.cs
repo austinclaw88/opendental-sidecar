@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using Microsoft.IO;
 
 namespace OpenDentalSidecar.Api.Middleware;
 
@@ -12,9 +11,9 @@ namespace OpenDentalSidecar.Api.Middleware;
 public class AuditMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly string _logDir;
+    private static string _logDir = "logs/audit";
     private static readonly ConcurrentQueue<AuditEntry> _buffer = new();
-    private static readonly RecyclableMemoryStreamManager _mem = new();
+
     private static readonly string[] _idPatterns = ["patNum", "claimNum", "appointmentNum", "procNum"];
 
     private static DateTime _lastFlush = DateTime.UtcNow;
@@ -23,7 +22,7 @@ public class AuditMiddleware
     public AuditMiddleware(RequestDelegate next, IConfiguration config)
     {
         _next = next;
-        _logDir = config.GetValue<string>("Audit:LogDir") ?? "logs/audit";
+        _logDir = config.GetValue<string>("Audit:LogDir") ?? _logDir;
         Directory.CreateDirectory(_logDir);
     }
 
@@ -94,11 +93,11 @@ public class AuditMiddleware
 
 public record AuditEntry
 {
-    public DateTime Timestamp { get; init; }
-    public string Method { get; init; } = "";
-    public string Path { get; init; } = "";
-    public string? QueryString { get; init; }
-    public string? ResourceType { get; init; }
-    public long? ResourceId { get; init; }
-    public string? User { get; init; }
+    public DateTime Timestamp { get; set; }
+    public string Method { get; set; } = "";
+    public string Path { get; set; } = "";
+    public string? QueryString { get; set; }
+    public string? ResourceType { get; set; }
+    public long? ResourceId { get; set; }
+    public string? User { get; set; }
 }
