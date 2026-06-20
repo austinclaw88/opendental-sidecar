@@ -154,6 +154,68 @@ public class ClaimRepository : IClaimRepository
         };
     }
 
+    public async Task<IReadOnlyList<ClaimQueueItemDto>> GetQueue(string? status, int days)
+    {
+        using var db = Db();
+        var statusFilter = (status ?? "").Trim().ToUpperInvariant() switch
+        {
+            "" => "",
+            "OPEN" => "AND c.ClaimStatus IN ('U', 'H', 'W', 'P', 'S', 'I')",
+            "U" => "AND c.ClaimStatus = 'U'",
+            "H" => "AND c.ClaimStatus IN ('H', 'I')",
+            "W" => "AND c.ClaimStatus IN ('W', 'P')",
+            "S" => "AND c.ClaimStatus = 'S'",
+            "R" => "AND c.ClaimStatus = 'R'",
+            _ => throw new ArgumentException("status must be U, H, W, S, R, or open."),
+        };
+
+        var sql = $"""
+            SELECT c.ClaimNum, c.PatNum, c.ClaimStatus, c.DateService, c.DateSent,
+                   c.ClaimFee, c.ClaimType,
+                   CONCAT(p.LName, ', ', p.FName) AS PatientName,
+                   prov.Abbr AS ProviderAbbr,
+                   car.CarrierName,
+                   COALESCE(agg.InsPayAmt, 0) AS InsPayAmt
+            FROM claim c
+            JOIN patient p ON c.PatNum = p.PatNum
+            LEFT JOIN provider prov ON c.ProvTreat = prov.ProvNum
+            LEFT JOIN insplan pl ON c.PlanNum = pl.PlanNum
+            LEFT JOIN carrier car ON pl.CarrierNum = car.CarrierNum
+            LEFT JOIN (
+                SELECT cp.ClaimNum, SUM(cp.InsPayAmt) AS InsPayAmt
+                FROM claimproc cp
+                WHERE cp.Status != 7
+                GROUP BY cp.ClaimNum
+            ) agg ON agg.ClaimNum = c.ClaimNum
+            WHERE c.DateService >= DATE_SUB(CURDATE(), INTERVAL @days DAY)
+              {statusFilter}
+            ORDER BY c.DateService DESC
+            LIMIT 1000;
+            """;
+        var rows = await db.QueryAsync(sql, new { days });
+        var today = DateTime.Today;
+        return rows.Select(r =>
+        {
+            DateTime? dateSent = NullDate((object?)r.DateSent);
+            return new ClaimQueueItemDto
+            {
+                ClaimNum = (long)r.ClaimNum,
+                PatNum = (long)r.PatNum,
+                PatientName = (string)r.PatientName,
+                CarrierName = (string?)r.CarrierName,
+                ProviderAbbr = (string?)r.ProviderAbbr,
+                ClaimStatus = (string)r.ClaimStatus,
+                ClaimStatusDesc = ClaimStatusDesc((string)r.ClaimStatus),
+                DateService = NullDate(r.DateService),
+                DateSent = dateSent,
+                DaysSinceSent = dateSent == null ? null : (int?)(today - dateSent.Value.Date).TotalDays,
+                ClaimFee = Convert.ToDecimal(r.ClaimFee),
+                InsPayAmt = Convert.ToDecimal(r.InsPayAmt),
+                ClaimType = (string?)r.ClaimType ?? "",
+            };
+        }).ToList();
+    }
+
     private static DateTime? NullDate(object? val) =>
         val is DateTime dt && dt > new DateTime(1900, 1, 1) ? dt : null;
 

@@ -1,6 +1,8 @@
 # OpenDental Sidecar
 
-Modern read-only web interface for OpenDental. Phase 1 — viewer only, no writes.
+Modern front-desk web interface for OpenDental. Phase 3 — the receptionist workflows
+(scheduling, patients, insurance, payments, recall, claims) run in the sidecar; clinical
+charting stays in OpenDental.
 
 ## Architecture
 

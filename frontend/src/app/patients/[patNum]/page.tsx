@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, User, Phone, Mail, MapPin, CalendarDays, Shield, Building2 } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, MapPin, CalendarDays, Shield, Building2, Pencil, Banknote, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PatientDetail, Appointment, Procedure, ClaimDto, api } from "@/lib/api";
+import {
+  PatientDetail, Appointment, Procedure, ClaimDto, api,
+  AccountSummary, FamilyMember, Commlog, RecallDue, patientApi,
+  InsuranceCoverage, insuranceApi,
+} from "@/lib/api";
+import { EditPatientDialog } from "@/components/patient/edit-patient-dialog";
+import { TakePaymentDialog } from "@/components/patient/take-payment-dialog";
+import { AddCommlogDialog } from "@/components/patient/add-commlog-dialog";
+import { AddAdjustmentDialog } from "@/components/patient/add-adjustment-dialog";
+import { InsuranceTab } from "@/components/patient/insurance-tab";
+import { AccountTab, FamilyTab, CommlogTab, RecallTab } from "@/components/patient/patient-tabs";
 
 export default function PatientDetailPage() {
   const { patNum } = useParams<{ patNum: string }>();
@@ -16,9 +26,18 @@ export default function PatientDetailPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [claims, setClaims] = useState<ClaimDto[]>([]);
+  const [account, setAccount] = useState<AccountSummary | null>(null);
+  const [family, setFamily] = useState<FamilyMember[]>([]);
+  const [commlogs, setCommlogs] = useState<Commlog[]>([]);
+  const [recalls, setRecalls] = useState<RecallDue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [commOpen, setCommOpen] = useState(false);
+  const [adjOpen, setAdjOpen] = useState(false);
+  const [coverage, setCoverage] = useState<InsuranceCoverage[]>([]);
 
-  useEffect(() => {
+  const reload = () => {
     if (!patNum) return;
     const n = parseInt(patNum);
     Promise.all([
@@ -32,6 +51,17 @@ export default function PatientDetailPage() {
       setProcedures(pr);
       setClaims(c);
     }).finally(() => setLoading(false));
+    // Secondary data; failures (e.g. read-only deployments) degrade quietly.
+    patientApi.getAccount(n).then(setAccount).catch(() => setAccount(null));
+    patientApi.getFamily(n).then(setFamily).catch(() => setFamily([]));
+    patientApi.getCommlogs(n).then(setCommlogs).catch(() => setCommlogs([]));
+    patientApi.getRecalls(n).then(setRecalls).catch(() => setRecalls([]));
+    insuranceApi.getByPatient(n).then(setCoverage).catch(() => setCoverage([]));
+  };
+
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patNum]);
 
   if (loading) {
@@ -71,6 +101,24 @@ export default function PatientDetailPage() {
             Patient #{patient.patNum}
             {patient.birthdate && ` · Born ${new Date(patient.birthdate).toLocaleDateString()}`}
           </p>
+        </div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="ml-1.5">Edit</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setCommOpen(true)}>
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            <span className="ml-1.5">Log Contact</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAdjOpen(true)}>
+            <Banknote className="h-3.5 w-3.5" />
+            <span className="ml-1.5">Adjustment</span>
+          </Button>
+          <Button size="sm" onClick={() => setPayOpen(true)}>
+            <Banknote className="h-3.5 w-3.5" />
+            <span className="ml-1.5">Take Payment</span>
+          </Button>
         </div>
       </div>
 
@@ -159,16 +207,42 @@ export default function PatientDetailPage() {
         </Card>
       </div>
 
-      {/* Tabs: Appointments, Procedures, Claims */}
+      {/* Tabs */}
       <Tabs defaultValue="appointments">
         <TabsList>
           <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="insurance">Insurance ({coverage.length})</TabsTrigger>
+          <TabsTrigger value="family">Family ({family.length})</TabsTrigger>
+          <TabsTrigger value="commlog">Comm Log ({commlogs.length})</TabsTrigger>
+          <TabsTrigger value="recall">Recall ({recalls.length})</TabsTrigger>
           <TabsTrigger value="procedures">Procedures ({procedures.length})</TabsTrigger>
           <TabsTrigger value="claims">Claims ({claims.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="appointments" className="mt-4">
           <AppointmentsTable appointments={appointments} />
+        </TabsContent>
+        <TabsContent value="account" className="mt-4">
+          <AccountTab account={account} />
+        </TabsContent>
+        <TabsContent value="insurance" className="mt-4">
+          <InsuranceTab
+            patNum={patient.patNum}
+            patientName={`${patient.fName} ${patient.lName}`}
+            coverage={coverage}
+            family={family}
+            onChanged={reload}
+          />
+        </TabsContent>
+        <TabsContent value="family" className="mt-4">
+          <FamilyTab family={family} currentPatNum={patient.patNum} />
+        </TabsContent>
+        <TabsContent value="commlog" className="mt-4">
+          <CommlogTab commlogs={commlogs} />
+        </TabsContent>
+        <TabsContent value="recall" className="mt-4">
+          <RecallTab recalls={recalls} />
         </TabsContent>
         <TabsContent value="procedures" className="mt-4">
           <ProceduresTable procedures={procedures} />
@@ -177,6 +251,24 @@ export default function PatientDetailPage() {
           <ClaimsTable claims={claims} router={router} />
         </TabsContent>
       </Tabs>
+
+      <EditPatientDialog open={editOpen} onOpenChange={setEditOpen} patient={patient} onSaved={reload} />
+      <TakePaymentDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        patNum={patient.patNum}
+        patientName={`${patient.fName} ${patient.lName}`}
+        suggestedAmount={account?.estimatedBalance}
+        onSaved={reload}
+      />
+      <AddCommlogDialog open={commOpen} onOpenChange={setCommOpen} patNum={patient.patNum} onSaved={reload} />
+      <AddAdjustmentDialog
+        open={adjOpen}
+        onOpenChange={setAdjOpen}
+        patNum={patient.patNum}
+        patientName={`${patient.fName} ${patient.lName}`}
+        onSaved={reload}
+      />
     </div>
   );
 }
