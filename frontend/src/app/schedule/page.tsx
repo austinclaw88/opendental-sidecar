@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   AppointmentType,
   Definition,
   Operatory,
   Provider,
+  ScheduleAppointment,
   ScheduleDay,
+  appointmentApi,
   referenceApi,
   scheduleApi,
 } from "@/lib/api";
@@ -26,6 +29,34 @@ import { AppointmentSheet } from "@/components/schedule/appointment-sheet";
 const DAY_START = 7 * 60; // 7:00
 const DAY_END = 19 * 60; // 19:00
 const PX_PER_MIN = 2; // 1 hour = 120px
+const SNAP_MIN = 5; // drag snaps to 5-minute increments (matches OD time pattern granularity)
+
+type DragState = {
+  apt: ScheduleAppointment;
+  targetOp: number;
+  startMinute: number;
+};
+
+/** Immutably patch a single appointment in a day. Pure, safe for concurrent optimistic updates. */
+function patchApt(
+  d: ScheduleDay | null,
+  aptNum: number,
+  patch: Partial<ScheduleAppointment>
+): ScheduleDay | null {
+  if (!d) return d;
+  return {
+    ...d,
+    appointments: d.appointments.map((a) => (a.aptNum === aptNum ? { ...a, ...patch } : a)),
+  };
+}
+
+function fmtMinuteLabel(min: number): string {
+  const h24 = Math.floor(min / 60);
+  const m = min % 60;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const ampm = h24 < 12 ? "am" : "pm";
+  return `${h12}:${`${m}`.padStart(2, "0")}${ampm}`;
+}
 
 export default function SchedulePage() {
   const [date, setDate] = useState(() => toDateInput(new Date()));
@@ -41,6 +72,19 @@ export default function SchedulePage() {
   const [bookOpen, setBookOpen] = useState(false);
   const [bookDefaults, setBookDefaults] = useState<{ dateTime?: string; opNum?: number }>({});
   const [selectedApt, setSelectedApt] = useState<number | null>(null);
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  // Drag-to-reschedule state.
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [saving, setSaving] = useState<Set<number>>(new Set());
+  const [toast, setToast] = useState<string | null>(null);
+  const colRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const suppressClickRef = useRef(false); // swallow the click that follows a drag
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const loadDay = useCallback(() => {
     setLoading(true);
@@ -86,6 +130,16 @@ export default function SchedulePage() {
     if (day) setOperatories(day.operatories);
   }, [day]);
 
+  // Tear down any in-flight drag listeners if we unmount mid-drag.
+  useEffect(() => () => cleanupRef.current?.(), []);
+
+  // Auto-dismiss the error toast.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
   const hours = useMemo(() => {
     const list: number[] = [];
     for (let m = DAY_START; m < DAY_END; m += 60) list.push(m);
@@ -103,7 +157,207 @@ export default function SchedulePage() {
     setBookOpen(true);
   };
 
+  // Resolve a pointer position to a target operatory + snapped start minute.
+  const resolveDrop = (
+    clientX: number,
+    clientY: number,
+    grabDy: number,
+    minutes: number
+  ): { op: number; minute: number } | null => {
+    const entries = [...colRefs.current.entries()];
+    if (entries.length === 0) return null;
+
+    let chosen: { op: number; rect: DOMRect } | null = null;
+    for (const [opNum, el] of entries) {
+      const r = el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right) {
+        chosen = { op: opNum, rect: r };
+        break;
+      }
+    }
+    if (!chosen) {
+      // Pointer is in the time gutter or past the last column: snap to the nearest column.
+      let best = Infinity;
+      for (const [opNum, el] of entries) {
+        const r = el.getBoundingClientRect();
+        const cx = (r.left + r.right) / 2;
+        const dist = Math.abs(clientX - cx);
+        if (dist < best) {
+          best = dist;
+          chosen = { op: opNum, rect: r };
+        }
+      }
+    }
+    if (!chosen) return null;
+
+    const topPx = clientY - chosen.rect.top - grabDy;
+    let minute = DAY_START + Math.round(topPx / PX_PER_MIN / SNAP_MIN) * SNAP_MIN;
+    minute = Math.max(DAY_START, Math.min(minute, DAY_END - minutes));
+    return { op: chosen.op, minute };
+  };
+
+  const beginDrag = (e: React.PointerEvent<HTMLDivElement>, apt: ScheduleAppointment) => {
+    if (e.button !== 0) return; // left button only
+    if (apt.aptStatus === 2) return; // completed appointments are click-to-open, not draggable
+    if (saving.has(apt.aptNum)) return; // already persisting a move
+
+    suppressClickRef.current = false;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const blockRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const grabDy = startY - blockRect.top;
+    let moved = false;
+
+    const onMove = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < 4) return;
+      moved = true;
+      const drop = resolveDrop(ev.clientX, ev.clientY, grabDy, apt.minutes);
+      if (drop) setDrag({ apt, targetOp: drop.op, startMinute: drop.minute });
+    };
+
+    const cleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      cleanupRef.current = null;
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      cleanup();
+      setDrag(null);
+      if (!moved) return; // a click, not a drag: let onClick open the sheet
+      suppressClickRef.current = true; // swallow the trailing click
+      const drop = resolveDrop(ev.clientX, ev.clientY, grabDy, apt.minutes);
+      if (!drop) return;
+      const origMinute = minutesSinceMidnight(apt.aptDateTime);
+      if (drop.op === apt.operatoryNum && drop.minute === origMinute) return; // no change
+      void commitMove(apt, drop.op, drop.minute);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      setDrag(null);
+    };
+
+    cleanupRef.current = cleanup;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  };
+
+  const commitMove = async (apt: ScheduleAppointment, op: number, minute: number) => {
+    const hh = `${Math.floor(minute / 60)}`.padStart(2, "0");
+    const mm = `${minute % 60}`.padStart(2, "0");
+    const newDateTime = `${date}T${hh}:${mm}`;
+    const optimisticDt = `${date}T${hh}:${mm}:00`;
+    const orig = { op: apt.operatoryNum, dt: apt.aptDateTime };
+
+    // Optimistic: move it immediately so the grid feels instant.
+    setDay((d) => patchApt(d, apt.aptNum, { operatoryNum: op, aptDateTime: optimisticDt }));
+    setSaving((s) => new Set(s).add(apt.aptNum));
+
+    try {
+      await appointmentApi.update(apt.aptNum, { aptDateTime: newDateTime, operatoryNum: op });
+    } catch (err) {
+      // Roll back to where it was and tell the user why.
+      setDay((d) => patchApt(d, apt.aptNum, { operatoryNum: orig.op, aptDateTime: orig.dt }));
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setToast(`Could not move ${apt.patientName}: ${msg}`);
+    } finally {
+      setSaving((s) => {
+        const n = new Set(s);
+        n.delete(apt.aptNum);
+        return n;
+      });
+    }
+  };
+
   const gridHeight = (DAY_END - DAY_START) * PX_PER_MIN;
+
+  // Renders one appointment block. `preview` is the floating copy shown while dragging.
+  const renderApt = (
+    a: ScheduleAppointment,
+    opts?: { preview?: boolean; minute?: number }
+  ) => {
+    const preview = opts?.preview ?? false;
+    const startMin = opts?.minute ?? minutesSinceMidnight(a.aptDateTime);
+    const top = (startMin - DAY_START) * PX_PER_MIN;
+    const height = Math.max(a.minutes * PX_PER_MIN, 24);
+    const color = argbToHex(a.providerColor, "#2f6b4f");
+    const confirmColor = argbToHex(a.confirmedColor, "transparent");
+    const isSaving = saving.has(a.aptNum);
+    const locked = a.aptStatus === 2; // completed
+
+    return (
+      <div
+        key={preview ? `preview-${a.aptNum}` : a.aptNum}
+        role="button"
+        tabIndex={preview ? -1 : 0}
+        onPointerDown={preview ? undefined : (e) => beginDrag(e, a)}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (preview) return;
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+          }
+          setSelectedApt(a.aptNum);
+        }}
+        onKeyDown={(e) => {
+          if (preview) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedApt(a.aptNum);
+          }
+        }}
+        className={cn(
+          "absolute inset-x-1 overflow-hidden rounded-md border bg-card text-left shadow-sm transition-shadow select-none",
+          preview
+            ? "z-40 opacity-95 shadow-lg ring-2 ring-primary"
+            : "z-20 hover:shadow-md",
+          locked ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
+          isSaving && !preview && "opacity-60"
+        )}
+        style={{ top, height, borderLeft: `4px solid ${color}`, touchAction: "none" }}
+      >
+        <div className="flex h-full flex-col px-1.5 py-1">
+          <div className="flex items-center gap-1">
+            {a.confirmedDesc && (
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: confirmColor }}
+                title={a.confirmedDesc}
+              />
+            )}
+            <span className="truncate text-xs font-medium leading-tight">{a.patientName}</span>
+            {a.isNewPatient && (
+              <span className="rounded bg-primary/15 px-1 text-[9px] font-semibold text-primary">
+                NP
+              </span>
+            )}
+            {preview && (
+              <span className="ml-auto shrink-0 rounded bg-primary px-1 text-[9px] font-semibold text-primary-foreground">
+                {fmtMinuteLabel(startMin)}
+              </span>
+            )}
+          </div>
+          {height >= 40 && (
+            <span className="truncate text-[10px] text-muted-foreground">
+              {a.providerAbbr && `${a.providerAbbr} · `}
+              {a.procDescript || a.appointmentTypeName || `${a.minutes} min`}
+            </span>
+          )}
+          {height >= 56 && a.aptStatus === 2 && (
+            <span className="text-[10px] font-medium text-primary">Completed</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (!hydrated) {
+    return <p className="py-16 text-center text-muted-foreground">Loading schedule...</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -171,7 +425,7 @@ export default function SchedulePage() {
         <div className="overflow-x-auto rounded-lg border bg-card">
           <div className="flex" style={{ minWidth: day.operatories.length * 180 + 56 }}>
             {/* Time column */}
-            <div className="sticky left-0 z-20 w-14 shrink-0 border-r bg-card">
+            <div className="sticky left-0 z-30 w-14 shrink-0 border-r bg-card">
               <div className="h-10 border-b" />
               <div className="relative" style={{ height: gridHeight }}>
                 {hours.map((m) => (
@@ -189,13 +443,17 @@ export default function SchedulePage() {
 
             {/* Operatory columns */}
             {day.operatories.map((op) => {
-              const opApts = day.appointments.filter((a) => a.operatoryNum === op.operatoryNum);
+              const draggingId = drag?.apt.aptNum ?? null;
+              const opApts = day.appointments.filter(
+                (a) => a.operatoryNum === op.operatoryNum && a.aptNum !== draggingId
+              );
               const opBlocks = day.blocks.filter(
                 (b) => b.schedType === 2 && (b.ops.length === 0 || b.ops.includes(op.operatoryNum))
               );
               const provSegments = day.blocks.filter(
                 (b) => b.schedType === 1 && b.ops.includes(op.operatoryNum)
               );
+              const isDropTarget = drag?.targetOp === op.operatoryNum;
               return (
                 <div key={op.operatoryNum} className="min-w-[180px] flex-1 border-r last:border-r-0">
                   <div className="flex h-10 items-center justify-center border-b bg-muted/40 px-2">
@@ -203,9 +461,21 @@ export default function SchedulePage() {
                     {op.isHygiene && <span className="ml-1.5 text-[10px] text-muted-foreground">HYG</span>}
                   </div>
                   <div
-                    className="relative cursor-pointer"
+                    ref={(el) => {
+                      if (el) colRefs.current.set(op.operatoryNum, el);
+                      else colRefs.current.delete(op.operatoryNum);
+                    }}
+                    className={cn(
+                      "relative cursor-pointer",
+                      isDropTarget && "bg-primary/5"
+                    )}
                     style={{ height: gridHeight }}
                     onClick={(e) => {
+                      if (drag) return;
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
                       // Click an empty slot to book, snapped to 10 minutes.
                       const rect = e.currentTarget.getBoundingClientRect();
                       const minute = DAY_START + Math.round((e.clientY - rect.top) / PX_PER_MIN / 10) * 10;
@@ -263,52 +533,10 @@ export default function SchedulePage() {
                     })}
 
                     {/* Appointments */}
-                    {opApts.map((a) => {
-                      const start = minutesSinceMidnight(a.aptDateTime);
-                      const top = (start - DAY_START) * PX_PER_MIN;
-                      const height = Math.max(a.minutes * PX_PER_MIN, 24);
-                      const color = argbToHex(a.providerColor, "#2f6b4f");
-                      const confirmColor = argbToHex(a.confirmedColor, "transparent");
-                      return (
-                        <button
-                          key={a.aptNum}
-                          type="button"
-                          className="absolute inset-x-1 z-20 overflow-hidden rounded-md border bg-card text-left shadow-sm transition-shadow hover:shadow-md"
-                          style={{ top, height, borderLeft: `4px solid ${color}` }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedApt(a.aptNum);
-                          }}
-                        >
-                          <div className="flex h-full flex-col px-1.5 py-1">
-                            <div className="flex items-center gap-1">
-                              {a.confirmedDesc && (
-                                <span
-                                  className="h-2 w-2 shrink-0 rounded-full"
-                                  style={{ background: confirmColor }}
-                                  title={a.confirmedDesc}
-                                />
-                              )}
-                              <span className="truncate text-xs font-medium leading-tight">
-                                {a.patientName}
-                              </span>
-                              {a.isNewPatient && (
-                                <span className="rounded bg-primary/15 px-1 text-[9px] font-semibold text-primary">NP</span>
-                              )}
-                            </div>
-                            {height >= 40 && (
-                              <span className="truncate text-[10px] text-muted-foreground">
-                                {a.providerAbbr && `${a.providerAbbr} · `}
-                                {a.procDescript || a.appointmentTypeName || `${a.minutes} min`}
-                              </span>
-                            )}
-                            {height >= 56 && a.aptStatus === 2 && (
-                              <span className="text-[10px] font-medium text-primary">Completed</span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
+                    {opApts.map((a) => renderApt(a))}
+
+                    {/* Floating drag preview lands here */}
+                    {isDropTarget && drag && renderApt(drag.apt, { preview: true, minute: drag.startMinute })}
                   </div>
                 </div>
               );
@@ -371,6 +599,21 @@ export default function SchedulePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Move-failed toast */}
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-2 rounded-lg border border-destructive/40 bg-card px-4 py-3 text-sm shadow-lg">
+          <span className="text-destructive">{toast}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-auto text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
