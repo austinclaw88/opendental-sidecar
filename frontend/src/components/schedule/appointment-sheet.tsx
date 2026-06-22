@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Sheet,
@@ -18,7 +18,9 @@ import {
   AppointmentDetail,
   Definition,
   Operatory,
+  Procedure,
   Provider,
+  api,
   appointmentApi,
 } from "@/lib/api";
 import { argbToHex, fmtDateTime, fmtMoney, fmtTime } from "@/lib/format";
@@ -64,14 +66,21 @@ export function AppointmentSheet({
   const [editOp, setEditOp] = useState(0);
   const [editProv, setEditProv] = useState(0);
   const [editNote, setEditNote] = useState("");
+  const [editProcedures, setEditProcedures] = useState<Procedure[]>([]);
+  const [editSelectedProcs, setEditSelectedProcs] = useState<Set<number>>(new Set());
+  const [editProcLoading, setEditProcLoading] = useState(false);
 
   const reload = () => {
     if (!aptNum) return;
     setLoading(true);
+    setError("");
     appointmentApi
       .getDetail(aptNum)
       .then(setApt)
-      .catch(() => setApt(null))
+      .catch((e) => {
+        setApt(null);
+        setError(e instanceof Error ? e.message : "Could not load appointment details.");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -110,18 +119,45 @@ export function AppointmentSheet({
     setEditOp(apt.operatoryNum);
     setEditProv(apt.provNum ?? 0);
     setEditNote(apt.note ?? "");
+    setEditProcedures(apt.procedures);
+    setEditSelectedProcs(new Set(apt.procedures.map((p) => p.procNum)));
     setEditing(true);
+    setEditProcLoading(true);
+    api
+      .getProcedures(apt.patNum)
+      .then((procs) =>
+        setEditProcedures(
+          procs.filter(
+            (p) =>
+              p.procStatusDesc.toLowerCase().includes("treatment") &&
+              (!p.aptNum || p.aptNum === apt.aptNum)
+          )
+        )
+      )
+      .catch(() => setEditProcedures(apt.procedures))
+      .finally(() => setEditProcLoading(false));
   };
+
+  const editProcFeeTotal = useMemo(
+    () =>
+      editProcedures
+        .filter((p) => editSelectedProcs.has(p.procNum))
+        .reduce((sum, p) => sum + p.procFee, 0),
+    [editProcedures, editSelectedProcs]
+  );
 
   const saveEdit = () =>
     run(async () => {
       if (!apt) return;
+      const selected = editProcedures.filter((p) => editSelectedProcs.has(p.procNum));
       await appointmentApi.update(apt.aptNum, {
         aptDateTime: editDateTime,
         minutes: editMinutes,
         operatoryNum: editOp,
         provNum: editProv || undefined,
         note: editNote,
+        procDescript: selected.length > 0 ? selected.map((p) => p.procCode).join(", ") : "",
+        procNums: selected.map((p) => p.procNum),
       });
       setEditing(false);
     });
@@ -151,6 +187,21 @@ export function AppointmentSheet({
     <Sheet open={aptNum != null} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         {loading && <p className="py-10 text-center text-sm text-muted-foreground">Loading...</p>}
+        {!loading && !apt && error && (
+          <div className="flex h-full flex-col justify-center gap-3 p-6 text-center">
+            <div>
+              <h2 className="font-heading text-base font-medium text-foreground">
+                Could not load appointment
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+            </div>
+            <div>
+              <Button variant="outline" size="sm" onClick={reload}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
         {!loading && apt && (
           <>
             <SheetHeader>
@@ -202,9 +253,9 @@ export function AppointmentSheet({
                   <Label>Attached procedures</Label>
                   <div className="mt-1 space-y-1">
                     {apt.procedures.map((p) => (
-                      <div key={p.procNum} className="flex items-center gap-2 text-sm">
+                      <div key={p.procNum} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 text-sm">
                         <span className="font-mono text-xs">{p.procCode}</span>
-                        <span className="flex-1 truncate">{p.descript}</span>
+                        <span className="min-w-0 truncate">{p.descript}</span>
                         <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
                       </div>
                     ))}
@@ -342,8 +393,8 @@ export function AppointmentSheet({
                 </div>
               ) : (
                 <div className="space-y-3 rounded-md border p-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 space-y-1.5">
                       <Label>Date and time</Label>
                       <Input
                         type="datetime-local"
@@ -351,7 +402,7 @@ export function AppointmentSheet({
                         onChange={(e) => setEditDateTime(e.target.value)}
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="min-w-0 space-y-1.5">
                       <Label>Minutes</Label>
                       <Input
                         type="number"
@@ -363,8 +414,8 @@ export function AppointmentSheet({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 space-y-1.5">
                       <Label>Operatory</Label>
                       <Select value={editOp} onChange={(e) => setEditOp(parseInt(e.target.value))}>
                         {operatories.map((o) => (
@@ -374,7 +425,7 @@ export function AppointmentSheet({
                         ))}
                       </Select>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="min-w-0 space-y-1.5">
                       <Label>Provider</Label>
                       <Select value={editProv} onChange={(e) => setEditProv(parseInt(e.target.value))}>
                         <option value={0}>Keep current</option>
@@ -389,6 +440,52 @@ export function AppointmentSheet({
                   <div className="space-y-1.5">
                     <Label>Note</Label>
                     <Textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Attached treatment-planned procedures</Label>
+                    <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {editProcLoading && (
+                        <p className="px-1 py-1 text-xs text-muted-foreground">Loading procedures...</p>
+                      )}
+                      {!editProcLoading && editProcedures.length === 0 && (
+                        <p className="px-1 py-1 text-xs text-muted-foreground">
+                          No available treatment-planned procedures.
+                        </p>
+                      )}
+                      {editProcedures.map((p) => (
+                        <label
+                          key={p.procNum}
+                          className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 gap-y-0.5 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                            checked={editSelectedProcs.has(p.procNum)}
+                            onChange={(e) => {
+                              const next = new Set(editSelectedProcs);
+                              if (e.target.checked) next.add(p.procNum);
+                              else next.delete(p.procNum);
+                              setEditSelectedProcs(next);
+                            }}
+                          />
+                          <span className="min-w-0">
+                            <span className="grid min-w-0 grid-cols-[auto_1fr] gap-2">
+                              <span className="font-mono text-xs">{p.procCode}</span>
+                              <span className="min-w-0 truncate">{p.descript}</span>
+                            </span>
+                            {p.toothNum && (
+                              <span className="block text-xs text-muted-foreground">#{p.toothNum}</span>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {editSelectedProcs.size > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {editSelectedProcs.size} selected - {fmtMoney(editProcFeeTotal)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => setEditing(false)}>

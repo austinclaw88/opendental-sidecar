@@ -24,6 +24,8 @@ import {
 } from "@/lib/api";
 import { fmtMoney } from "@/lib/format";
 
+const APPOINTMENT_STEP_MIN = 10;
+
 interface NewAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,11 +35,23 @@ interface NewAppointmentDialogProps {
   /** Prefill when the dialog is opened by clicking an empty schedule slot. */
   defaultDateTime?: string; // "yyyy-MM-ddTHH:mm"
   defaultOperatoryNum?: number;
+  defaultMinutes?: number;
   /** Prefill when booking from a patient page or recall list. */
   defaultPatient?: PatientSummary | null;
   /** When booking from the recall list, the recall row to mark as scheduled. */
   recallNum?: number;
   onBooked: () => void;
+}
+
+function splitDateTime(value?: string): { date: string; time: string } {
+  if (!value) return { date: "", time: "" };
+  const [date = "", time = ""] = value.split("T");
+  return { date, time: time.slice(0, 5) };
+}
+
+function normalizeDuration(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return 60;
+  return Math.min(540, Math.max(APPOINTMENT_STEP_MIN, Math.ceil(value / APPOINTMENT_STEP_MIN) * APPOINTMENT_STEP_MIN));
 }
 
 export function NewAppointmentDialog({
@@ -48,12 +62,14 @@ export function NewAppointmentDialog({
   appointmentTypes,
   defaultDateTime,
   defaultOperatoryNum,
+  defaultMinutes,
   defaultPatient,
   recallNum,
   onBooked,
 }: NewAppointmentDialogProps) {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
-  const [dateTime, setDateTime] = useState("");
+  const [appointmentDate, setAppointmentDate] = useState("");
+  const [startTime, setStartTime] = useState("");
   const [minutes, setMinutes] = useState(60);
   const [operatoryNum, setOperatoryNum] = useState<number>(0);
   const [provNum, setProvNum] = useState<number>(0);
@@ -69,9 +85,11 @@ export function NewAppointmentDialog({
   // Reset form each time the dialog opens.
   useEffect(() => {
     if (!open) return;
+    const defaultParts = splitDateTime(defaultDateTime);
     setPatient(defaultPatient ?? null);
-    setDateTime(defaultDateTime ?? "");
-    setMinutes(60);
+    setAppointmentDate(defaultParts.date);
+    setStartTime(defaultParts.time);
+    setMinutes(normalizeDuration(defaultMinutes ?? 60));
     setOperatoryNum(defaultOperatoryNum ?? operatories[0]?.operatoryNum ?? 0);
     setProvNum(0);
     setApptTypeNum(0);
@@ -80,7 +98,7 @@ export function NewAppointmentDialog({
     setNote("");
     setSelectedProcs(new Set());
     setError("");
-  }, [open, defaultDateTime, defaultOperatoryNum, defaultPatient, operatories]);
+  }, [open, defaultDateTime, defaultOperatoryNum, defaultMinutes, defaultPatient, operatories]);
 
   // Load treatment-planned procedures when a patient is chosen.
   useEffect(() => {
@@ -102,7 +120,7 @@ export function NewAppointmentDialog({
   const handleTypeChange = (num: number) => {
     setApptTypeNum(num);
     const t = appointmentTypes.find((x) => x.appointmentTypeNum === num);
-    if (t?.pattern) setMinutes(t.pattern.length * 5);
+    if (t?.pattern) setMinutes(normalizeDuration(t.pattern.length * 5));
   };
 
   const procFeeTotal = useMemo(
@@ -115,16 +133,20 @@ export function NewAppointmentDialog({
 
   const submit = async () => {
     if (!patient) return setError("Choose a patient first.");
-    if (!dateTime) return setError("Pick a date and time.");
+    if (!appointmentDate || !startTime) return setError("Pick a date and start time.");
     if (!operatoryNum) return setError("Pick an operatory.");
+    const [, minutePart = "0"] = startTime.split(":");
+    if (parseInt(minutePart, 10) % APPOINTMENT_STEP_MIN !== 0)
+      return setError("Start time must be on a 10-minute interval.");
+    const normalizedMinutes = normalizeDuration(minutes);
     setSaving(true);
     setError("");
     try {
       const selected = tpProcedures.filter((p) => selectedProcs.has(p.procNum));
       await appointmentApi.create({
         patNum: patient.patNum,
-        aptDateTime: dateTime,
-        minutes,
+        aptDateTime: `${appointmentDate}T${startTime}`,
+        minutes: normalizedMinutes,
         operatoryNum,
         provNum: provNum || undefined,
         appointmentTypeNum: apptTypeNum || undefined,
@@ -149,41 +171,50 @@ export function NewAppointmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg overflow-hidden">
+        <DialogHeader className="min-w-0 pr-8">
           <DialogTitle>New Appointment</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="space-y-1.5">
             <Label>Patient</Label>
             <PatientPicker value={patient} onChange={setPatient} autoFocus={!defaultPatient} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Date and time</Label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Date</Label>
               <Input
-                type="datetime-local"
-                value={dateTime}
-                onChange={(e) => setDateTime(e.target.value)}
+                type="date"
+                value={appointmentDate}
+                onChange={(e) => setAppointmentDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Start time</Label>
+              <Input
+                type="time"
+                step={APPOINTMENT_STEP_MIN * 60}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Length (minutes)</Label>
               <Input
                 type="number"
-                min={5}
+                min={APPOINTMENT_STEP_MIN}
                 max={540}
-                step={5}
+                step={APPOINTMENT_STEP_MIN}
                 value={minutes}
-                onChange={(e) => setMinutes(parseInt(e.target.value) || 60)}
+                onChange={(e) => setMinutes(normalizeDuration(parseInt(e.target.value, 10)))}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label>Operatory</Label>
               <Select
                 value={operatoryNum}
@@ -196,10 +227,10 @@ export function NewAppointmentDialog({
                 ))}
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label>Provider</Label>
               <Select value={provNum} onChange={(e) => setProvNum(parseInt(e.target.value))}>
-                <option value={0}>Auto (operatory / patient default)</option>
+                <option value={0}>Auto (default)</option>
                 {providers.map((p) => (
                   <option key={p.provNum} value={p.provNum}>
                     {p.abbr} ({p.lName})
@@ -209,8 +240,8 @@ export function NewAppointmentDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
               <Label>Appointment type</Label>
               <Select
                 value={apptTypeNum}
@@ -224,7 +255,7 @@ export function NewAppointmentDialog({
                 ))}
               </Select>
             </div>
-            <div className="flex items-end gap-4 pb-1.5">
+            <div className="flex min-w-0 flex-wrap items-end gap-x-4 gap-y-2 pb-1.5">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -251,10 +282,10 @@ export function NewAppointmentDialog({
               <Label>Attach treatment-planned procedures</Label>
               <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
                 {tpProcedures.map((p) => (
-                  <label key={p.procNum} className="flex items-center gap-2 text-sm">
+                  <label key={p.procNum} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 gap-y-0.5 text-sm">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-primary"
+                      className="mt-0.5 h-4 w-4 accent-primary"
                       checked={selectedProcs.has(p.procNum)}
                       onChange={(e) => {
                         const next = new Set(selectedProcs);
@@ -263,16 +294,20 @@ export function NewAppointmentDialog({
                         setSelectedProcs(next);
                       }}
                     />
-                    <span className="font-mono text-xs">{p.procCode}</span>
-                    <span className="flex-1 truncate">{p.descript}</span>
-                    {p.toothNum && <span className="text-xs text-muted-foreground">#{p.toothNum}</span>}
+                    <span className="min-w-0">
+                      <span className="grid min-w-0 grid-cols-[auto_1fr] gap-2">
+                        <span className="font-mono text-xs">{p.procCode}</span>
+                        <span className="min-w-0 truncate">{p.descript}</span>
+                      </span>
+                      {p.toothNum && <span className="block text-xs text-muted-foreground">#{p.toothNum}</span>}
+                    </span>
                     <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
                   </label>
                 ))}
               </div>
               {selectedProcs.size > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {selectedProcs.size} selected · {fmtMoney(procFeeTotal)}
+                  {selectedProcs.size} selected - {fmtMoney(procFeeTotal)}
                 </p>
               )}
             </div>
