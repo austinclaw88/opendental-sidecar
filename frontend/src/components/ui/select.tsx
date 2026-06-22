@@ -8,11 +8,11 @@ import { ChevronDown } from "lucide-react";
  */
 const Select = React.forwardRef<HTMLSelectElement, React.ComponentProps<"select">>(
   ({ className, children, ...props }, ref) => (
-    <div className="relative">
+    <div className="relative min-w-0">
       <select
         ref={ref}
         className={cn(
-          "h-9 w-full appearance-none rounded-md border border-input bg-transparent px-3 pr-8 text-sm shadow-xs transition-colors",
+          "h-9 w-full min-w-0 truncate appearance-none rounded-md border border-input bg-transparent px-3 pr-8 text-sm shadow-xs transition-colors",
           "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none",
           "disabled:cursor-not-allowed disabled:opacity-50",
           className

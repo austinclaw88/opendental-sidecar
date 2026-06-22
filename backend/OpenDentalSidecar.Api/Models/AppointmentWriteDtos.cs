@@ -41,6 +41,8 @@ public class UpdateAppointmentRequest
     public string? Note { get; set; }
     public string? ProcDescript { get; set; }
     public bool? IsNewPatient { get; set; }
+    /// <summary>Treatment-planned procedure numbers that should remain attached to this appointment. Omit to leave attachments unchanged.</summary>
+    public List<long>? ProcNums { get; set; }
     /// <summary>Any other appointment column in the connected database, by exact column name. Validated against the live schema.</summary>
     public Dictionary<string, object?>? ExtraFields { get; set; }
 }

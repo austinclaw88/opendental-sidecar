@@ -394,6 +394,7 @@ export interface UpdateAppointmentRequest {
   note?: string;
   procDescript?: string;
   isNewPatient?: boolean;
+  procNums?: number[];
 }
 
 export interface CreatePatientRequest {

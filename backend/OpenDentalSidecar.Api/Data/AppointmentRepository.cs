@@ -97,7 +97,7 @@ public class AppointmentRepository : IAppointmentRepository
                 ProcCode = (string)p.ProcCode,
                 Descript = (string?)p.Descript ?? "",
                 ProcDate = (DateTime)p.ProcDate,
-                ProcFee = Convert.ToDecimal(p.ProcFee),
+                ProcFee = Convert.ToDouble(p.ProcFee),
                 ProcStatus = Convert.ToInt32(p.ProcStatus),
                 ProcStatusDesc = ProcedureRepository.StatusDesc(Convert.ToInt32(p.ProcStatus)),
                 ToothNum = (string?)p.ToothNum,
@@ -293,10 +293,11 @@ public class AppointmentRepository : IAppointmentRepository
         using var tx = await db.BeginTransactionAsync();
 
         var existing = await db.QueryFirstOrDefaultAsync(
-            "SELECT AptDateTime, Pattern FROM appointment WHERE AptNum = @aptNum;",
+            "SELECT AptDateTime, Pattern, PatNum FROM appointment WHERE AptNum = @aptNum;",
             new { aptNum }, tx);
         if (existing == null) return false;
         var oldDate = (DateTime)existing.AptDateTime;
+        var patNum = (long)existing.PatNum;
 
         var fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
@@ -312,18 +313,36 @@ public class AppointmentRepository : IAppointmentRepository
         if (req.ExtraFields != null)
             foreach (var (key, value) in req.ExtraFields)
                 fields[key] = value;
-        if (fields.Values.All(v => v == null)) return true;
+        var affected = 0;
+        if (fields.Values.Any(v => v != null))
+        {
+            var columns = await _schema.GetColumns("appointment");
+            var (sql, p) = OdInsertBuilder.BuildUpdate("appointment", columns, aptNum, fields);
+            affected = await db.ExecuteAsync(sql, p, tx);
+        }
 
-        var columns = await _schema.GetColumns("appointment");
-        var (sql, p) = OdInsertBuilder.BuildUpdate("appointment", columns, aptNum, fields);
-        var affected = await db.ExecuteAsync(sql, p, tx);
+        if (req.ProcNums != null)
+        {
+            await db.ExecuteAsync("""
+                UPDATE procedurelog SET AptNum = 0
+                WHERE AptNum = @aptNum AND PatNum = @patNum AND ProcStatus = 1;
+                """, new { aptNum, patNum }, tx);
+
+            if (req.ProcNums.Count > 0)
+            {
+                await db.ExecuteAsync("""
+                    UPDATE procedurelog SET AptNum = @aptNum
+                    WHERE ProcNum IN @procNums AND PatNum = @patNum AND ProcStatus = 1;
+                    """, new { aptNum, procNums = req.ProcNums, patNum }, tx);
+            }
+        }
 
         await InsertAppointmentSignal(db, tx, aptNum, oldDate);
         if (req.AptDateTime.HasValue && req.AptDateTime.Value.Date != oldDate.Date)
             await InsertAppointmentSignal(db, tx, aptNum, req.AptDateTime.Value);
 
         await tx.CommitAsync();
-        return affected > 0;
+        return affected > 0 || req.ProcNums != null;
     }
 
     public async Task<bool> SetStatus(long aptNum, int aptStatus, string? reason = null)

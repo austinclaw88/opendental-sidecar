@@ -46,19 +46,19 @@ export function PatientPicker({ value, onChange, autoFocus }: PatientPickerProps
 
   if (value) {
     return (
-      <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
-        <div>
-          <p className="text-sm font-medium">
+      <div className="flex min-w-0 items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">
             {value.lName}, {value.fName}
             {value.preferred && <span className="ml-1 text-muted-foreground">({value.preferred})</span>}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="truncate text-xs text-muted-foreground">
             #{value.patNum}
             {value.birthdate && ` · Born ${fmtDate(value.birthdate)}`}
             {value.wirelessPhone && ` · ${value.wirelessPhone}`}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => onChange(null)} aria-label="Clear patient">
+        <Button variant="ghost" size="icon" onClick={() => onChange(null)} aria-label="Clear patient" className="shrink-0">
           <X className="h-4 w-4" />
         </Button>
       </div>

@@ -39,7 +39,7 @@ public class ProcedureRepository : IProcedureRepository
             ProcCode = (string?)r.ProcCode ?? "",
             Descript = (string?)r.Descript ?? "",
             ProcDate = (DateTime)r.ProcDate,
-            ProcFee = (double)r.ProcFee,
+            ProcFee = Convert.ToDouble(r.ProcFee),
             ProcStatus = (int)r.ProcStatus,
             ProcStatusDesc = StatusDesc((int)r.ProcStatus),
             ToothNum = (string?)r.ToothNum,
