@@ -282,7 +282,10 @@ export function NewAppointmentDialog({
               <Label>Attach treatment-planned procedures</Label>
               <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border p-2">
                 {tpProcedures.map((p) => (
-                  <label key={p.procNum} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 gap-y-0.5 text-sm">
+                  <label
+                    key={p.procNum}
+                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-0.5 rounded px-1 py-1 text-sm hover:bg-muted sm:grid-cols-[auto_minmax(0,1fr)_auto]"
+                  >
                     <input
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 accent-primary"
@@ -295,13 +298,15 @@ export function NewAppointmentDialog({
                       }}
                     />
                     <span className="min-w-0">
-                      <span className="grid min-w-0 grid-cols-[auto_1fr] gap-2">
-                        <span className="font-mono text-xs">{p.procCode}</span>
-                        <span className="min-w-0 truncate">{p.descript}</span>
+                      <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                        <span className="shrink-0 font-mono text-xs">{p.procCode}</span>
+                        <span className="min-w-0 flex-1 truncate">{p.descript}</span>
                       </span>
                       {p.toothNum && <span className="block text-xs text-muted-foreground">#{p.toothNum}</span>}
                     </span>
-                    <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
+                    <span className="col-start-2 text-xs text-muted-foreground sm:col-start-auto sm:text-right">
+                      {fmtMoney(p.procFee)}
+                    </span>
                   </label>
                 ))}
               </div>
