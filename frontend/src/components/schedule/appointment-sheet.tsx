@@ -231,12 +231,12 @@ export function AppointmentSheet({
               <div className="space-y-1 text-sm">
                 <p className="flex items-center gap-2">
                   <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                  {fmtDateTime(apt.aptDateTime)} · {apt.minutes} min
+                  {fmtDateTime(apt.aptDateTime)} - {apt.minutes} min
                 </p>
                 <p className="text-muted-foreground">
                   Op {operatories.find((o) => o.operatoryNum === apt.operatoryNum)?.abbrev ?? apt.operatoryNum}
-                  {apt.providerAbbr && ` · ${apt.providerAbbr}`}
-                  {apt.appointmentTypeName && ` · ${apt.appointmentTypeName}`}
+                  {apt.providerAbbr && ` - ${apt.providerAbbr}`}
+                  {apt.appointmentTypeName && ` - ${apt.appointmentTypeName}`}
                 </p>
                 {apt.patientPhone && (
                   <p className="flex items-center gap-2">
@@ -253,10 +253,15 @@ export function AppointmentSheet({
                   <Label>Attached procedures</Label>
                   <div className="mt-1 space-y-1">
                     {apt.procedures.map((p) => (
-                      <div key={p.procNum} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 text-sm">
+                      <div
+                        key={p.procNum}
+                        className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-0.5 text-sm sm:grid-cols-[auto_minmax(0,1fr)_auto]"
+                      >
                         <span className="font-mono text-xs">{p.procCode}</span>
                         <span className="min-w-0 truncate">{p.descript}</span>
-                        <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
+                        <span className="col-start-2 text-xs text-muted-foreground sm:col-start-auto sm:text-right">
+                          {fmtMoney(p.procFee)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -357,7 +362,7 @@ export function AppointmentSheet({
                     onClick={() => run(() => appointmentApi.setPriority(apt.aptNum, apt.priority === 1 ? 0 : 1))}
                   >
                     <Zap className="h-3.5 w-3.5" />
-                    <span className="ml-1.5">{apt.priority === 1 ? "ASAP ✓" : "ASAP"}</span>
+                    <span className="ml-1.5">{apt.priority === 1 ? "ASAP on" : "ASAP"}</span>
                   </Button>
                   {breaking !== null && (
                     <div className="w-full space-y-2 rounded-md border bg-muted/30 p-3">
@@ -366,7 +371,7 @@ export function AppointmentSheet({
                       </Label>
                       <Textarea
                         rows={2}
-                        placeholder="e.g. Patient called to cancel — sick. Wants to rebook next week."
+                        placeholder="e.g. Patient called to cancel - sick. Wants to rebook next week."
                         value={breakReason}
                         onChange={(e) => setBreakReason(e.target.value)}
                         autoFocus
@@ -455,7 +460,7 @@ export function AppointmentSheet({
                       {editProcedures.map((p) => (
                         <label
                           key={p.procNum}
-                          className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-x-2 gap-y-0.5 text-sm"
+                          className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-0.5 rounded px-1 py-1 text-sm hover:bg-muted sm:grid-cols-[auto_minmax(0,1fr)_auto]"
                         >
                           <input
                             type="checkbox"
@@ -469,15 +474,17 @@ export function AppointmentSheet({
                             }}
                           />
                           <span className="min-w-0">
-                            <span className="grid min-w-0 grid-cols-[auto_1fr] gap-2">
-                              <span className="font-mono text-xs">{p.procCode}</span>
-                              <span className="min-w-0 truncate">{p.descript}</span>
+                            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                              <span className="shrink-0 font-mono text-xs">{p.procCode}</span>
+                              <span className="min-w-0 flex-1 truncate">{p.descript}</span>
                             </span>
                             {p.toothNum && (
                               <span className="block text-xs text-muted-foreground">#{p.toothNum}</span>
                             )}
                           </span>
-                          <span className="text-xs text-muted-foreground">{fmtMoney(p.procFee)}</span>
+                          <span className="col-start-2 text-xs text-muted-foreground sm:col-start-auto sm:text-right">
+                            {fmtMoney(p.procFee)}
+                          </span>
                         </label>
                       ))}
                     </div>

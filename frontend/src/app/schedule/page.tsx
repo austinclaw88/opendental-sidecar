@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { RefreshCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   AppointmentType,
   Definition,
-  Operatory,
   Provider,
   ScheduleAppointment,
   ScheduleDay,
@@ -23,15 +21,18 @@ import {
   timeSpanToMinutes,
   toDateInput,
 } from "@/lib/format";
+import {
+  fmtMinuteLabel,
+  fmtMinuteRange,
+  PX_PER_MIN,
+  scheduleBounds,
+  SNAP_MIN,
+} from "@/lib/schedule-calculations";
 import { NewAppointmentDialog } from "@/components/schedule/new-appointment-dialog";
 import { AppointmentSheet } from "@/components/schedule/appointment-sheet";
-
-const DEFAULT_DAY_START = 7 * 60; // 7:00
-const DEFAULT_DAY_END = 19 * 60; // 19:00
-const MIN_DAY_START = 0;
-const MAX_DAY_END = 24 * 60;
-const PX_PER_MIN = 2; // 1 hour = 120px
-const SNAP_MIN = 10;
+import { AppointmentModulePanel } from "@/components/schedule/appointment-module-panel";
+import { ScheduleToolbar, ScheduleView } from "@/components/schedule/schedule-toolbar";
+import { ScheduleWeekView } from "@/components/schedule/schedule-week-view";
 
 type DragState = {
   apt: ScheduleAppointment;
@@ -58,61 +59,20 @@ function patchApt(
   };
 }
 
-function fmtMinuteLabel(min: number): string {
-  const h24 = Math.floor(min / 60);
-  const m = min % 60;
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  const ampm = h24 < 12 ? "am" : "pm";
-  return `${h12}:${`${m}`.padStart(2, "0")}${ampm}`;
-}
-
-function fmtCompactMinuteLabel(min: number): string {
-  const h24 = Math.floor(min / 60);
-  const m = min % 60;
-  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-  const suffix = h24 < 12 ? "a" : "p";
-  return m === 0 ? `${h12}${suffix}` : `${h12}:${`${m}`.padStart(2, "0")}${suffix}`;
-}
-
-function fmtMinuteRange(start: number, minutes: number): string {
-  return `${fmtCompactMinuteLabel(start)}-${fmtCompactMinuteLabel(start + minutes)}`;
-}
-
-function scheduleBounds(d: ScheduleDay | null): { start: number; end: number } {
-  if (!d) return { start: DEFAULT_DAY_START, end: DEFAULT_DAY_END };
-
-  const starts = [DEFAULT_DAY_START];
-  const ends = [DEFAULT_DAY_END];
-
-  for (const a of d.appointments) {
-    const start = minutesSinceMidnight(a.aptDateTime);
-    starts.push(start);
-    ends.push(start + a.minutes);
-  }
-
-  for (const b of d.blocks) {
-    starts.push(timeSpanToMinutes(b.startTime));
-    ends.push(timeSpanToMinutes(b.stopTime));
-  }
-
-  const start = Math.max(MIN_DAY_START, Math.floor(Math.min(...starts) / 60) * 60);
-  const end = Math.min(MAX_DAY_END, Math.ceil(Math.max(...ends) / 60) * 60);
-  return { start, end: Math.max(end, start + 60) };
-}
-
 export default function SchedulePage() {
   const [date, setDate] = useState(() => toDateInput(new Date()));
-  const [view, setView] = useState<"day" | "week">("day");
+  const [view, setView] = useState<ScheduleView>("day");
   const [day, setDay] = useState<ScheduleDay | null>(null);
   const [week, setWeek] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [operatories, setOperatories] = useState<Operatory[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [apptTypes, setApptTypes] = useState<AppointmentType[]>([]);
   const [confirmStatuses, setConfirmStatuses] = useState<Definition[]>([]);
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bookDefaults, setBookDefaults] = useState<{ dateTime?: string; opNum?: number; minutes?: number }>({});
+  const [openSlotMinutes, setOpenSlotMinutes] = useState(60);
   const [selectedApt, setSelectedApt] = useState<number | null>(null);
   const hydrated = useSyncExternalStore(
     () => () => {},
@@ -131,11 +91,15 @@ export default function SchedulePage() {
 
   const loadDay = useCallback(() => {
     setLoading(true);
+    setLoadError("");
     if (view === "day") {
       scheduleApi
         .getDay(date)
         .then(setDay)
-        .catch(() => setDay(null))
+        .catch((e) => {
+          setDay(null);
+          setLoadError(e instanceof Error ? e.message : "Could not load the schedule.");
+        })
         .finally(() => setLoading(false));
     } else {
       // Monday-start week containing the selected date.
@@ -150,28 +114,30 @@ export default function SchedulePage() {
           setWeek(days);
           if (days.length > 0) setDay(days[0]); // keep operatories fresh
         })
-        .catch(() => setWeek([]))
+        .catch((e) => {
+          setWeek([]);
+          setLoadError(e instanceof Error ? e.message : "Could not load the schedule.");
+        })
         .finally(() => setLoading(false));
     }
   }, [date, view]);
 
-  useEffect(loadDay, [loadDay]);
+  useEffect(() => {
+    const id = window.setTimeout(loadDay, 0);
+    return () => window.clearTimeout(id);
+  }, [loadDay]);
 
   useEffect(() => {
     Promise.all([
-      referenceApi.getProviders(),
-      referenceApi.getAppointmentTypes(),
-      referenceApi.getConfirmationStatuses(),
+      referenceApi.getProviders().catch(() => [] as Provider[]),
+      referenceApi.getAppointmentTypes().catch(() => [] as AppointmentType[]),
+      referenceApi.getConfirmationStatuses().catch(() => [] as Definition[]),
     ]).then(([p, t, c]) => {
       setProviders(p);
       setApptTypes(t);
       setConfirmStatuses(c);
     });
   }, []);
-
-  useEffect(() => {
-    if (day) setOperatories(day.operatories);
-  }, [day]);
 
   // Tear down any in-flight drag listeners if we unmount mid-drag.
   useEffect(() => () => cleanupRef.current?.(), []);
@@ -190,6 +156,7 @@ export default function SchedulePage() {
     for (let m = dayStart; m < dayEnd; m += 60) list.push(m);
     return list;
   }, [dayStart, dayEnd]);
+  const operatories = day?.operatories ?? [];
 
   const openBooking = (opNum?: number, minute?: number, minutes?: number) => {
     let dateTime: string | undefined;
@@ -461,7 +428,7 @@ export default function SchedulePage() {
           )}
           {height >= 58 && (
             <span className="truncate text-[10px] leading-tight text-muted-foreground">
-              {a.providerAbbr && `${a.providerAbbr} · `}
+              {a.providerAbbr && `${a.providerAbbr} - `}
               {a.procDescript || a.appointmentTypeName || `${a.minutes} min`}
             </span>
           )}
@@ -479,85 +446,59 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
-          <p className="text-sm text-muted-foreground">
-            {new Date(`${date}T00:00`).toLocaleDateString("en-CA", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-md border">
-            <Button
-              variant={view === "day" ? "secondary" : "ghost"}
-              size="sm"
-              className="rounded-r-none"
-              onClick={() => setView("day")}
-            >
-              Day
-            </Button>
-            <Button
-              variant={view === "week" ? "secondary" : "ghost"}
-              size="sm"
-              className="rounded-l-none"
-              onClick={() => setView("week")}
-            >
-              Week
-            </Button>
-          </div>
-          <Button variant="outline" size="icon" onClick={() => setDate(toDateInput(addDays(new Date(`${date}T00:00`), view === "week" ? -7 : -1)))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="w-40"
-          />
-          <Button variant="outline" size="icon" onClick={() => setDate(toDateInput(addDays(new Date(`${date}T00:00`), view === "week" ? 7 : 1)))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={() => setDate(toDateInput(new Date()))}>
-            Today
-          </Button>
-          <Button onClick={() => openBooking()}>
-            <Plus className="h-4 w-4" />
-            <span className="ml-1.5">New Appointment</span>
-          </Button>
-        </div>
-      </div>
+      <ScheduleToolbar
+        date={date}
+        view={view}
+        loading={loading}
+        onDateChange={setDate}
+        onViewChange={setView}
+        onRefresh={loadDay}
+        onNewAppointment={() => openBooking()}
+      />
 
       {loading && <p className="py-16 text-center text-muted-foreground">Loading schedule...</p>}
 
-      {!loading && view === "day" && day && day.operatories.length === 0 && (
-        <p className="py-16 text-center text-muted-foreground">No operatories configured.</p>
+      {!loading && loadError && (
+        <div className="rounded-lg border border-destructive/30 bg-card px-4 py-5 text-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium text-destructive">Schedule could not be loaded.</p>
+              <p className="mt-1 break-words text-muted-foreground">{loadError}</p>
+            </div>
+            <Button variant="outline" onClick={loadDay} className="shrink-0">
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        </div>
       )}
 
-      {!loading && view === "day" && day && day.operatories.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <div className="flex" style={{ minWidth: day.operatories.length * 180 + 56 }}>
-            {/* Time column */}
-            <div className="sticky left-0 z-30 w-14 shrink-0 border-r bg-card">
-              <div className="h-10 border-b" />
-              <div className="relative" style={{ height: gridHeight }}>
-                {hours.map((m) => (
-                  <div
-                    key={m}
-                    className="absolute w-full pr-1.5 text-right text-[11px] text-muted-foreground"
-                    style={{ top: (m - dayStart) * PX_PER_MIN - 7 }}
-                  >
-                    {Math.floor(m / 60) % 12 === 0 ? 12 : Math.floor(m / 60) % 12}
-                    {Math.floor(m / 60) < 12 ? "a" : "p"}
+      {!loading && !loadError && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-4">
+            {view === "day" && day && day.operatories.length === 0 && (
+              <p className="py-16 text-center text-muted-foreground">No operatories configured.</p>
+            )}
+
+            {view === "day" && day && day.operatories.length > 0 && (
+              <div className="overflow-x-auto rounded-lg border bg-card">
+                <div className="flex" style={{ minWidth: day.operatories.length * 180 + 56 }}>
+                  {/* Time column */}
+                  <div className="sticky left-0 z-30 w-14 shrink-0 border-r bg-card">
+                    <div className="h-10 border-b" />
+                    <div className="relative" style={{ height: gridHeight }}>
+                      {hours.map((m) => (
+                        <div
+                          key={m}
+                          className="absolute w-full pr-1.5 text-right text-[11px] text-muted-foreground"
+                          style={{ top: (m - dayStart) * PX_PER_MIN - 7 }}
+                        >
+                          {Math.floor(m / 60) % 12 === 0 ? 12 : Math.floor(m / 60) % 12}
+                          {Math.floor(m / 60) < 12 ? "a" : "p"}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
 
             {/* Operatory columns */}
             {day.operatories.map((op) => {
@@ -690,60 +631,26 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {!loading && view === "week" && (
-        <div className="grid gap-3 lg:grid-cols-7 md:grid-cols-4 grid-cols-2">
-          {week.map((wd) => {
-            const wdDate = String(wd.date);
-            const isToday = wdDate === toDateInput(new Date());
-            const apts = [...wd.appointments].sort(
-              (a, b) => new Date(a.aptDateTime).getTime() - new Date(b.aptDateTime).getTime()
-            );
-            return (
-              <div
-                key={wdDate}
-                className={`flex min-h-[200px] flex-col rounded-lg border bg-card ${isToday ? "border-primary" : ""}`}
-              >
-                <button
-                  type="button"
-                  className="border-b px-2 py-1.5 text-left hover:bg-muted/40"
-                  onClick={() => {
-                    setDate(wdDate);
-                    setView("day");
-                  }}
-                  title="Open day view"
-                >
-                  <span className="text-xs font-medium">
-                    {new Date(`${wdDate}T00:00`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}
-                  </span>
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">
-                    {apts.length > 0 ? `${apts.length} appt${apts.length === 1 ? "" : "s"}` : ""}
-                  </span>
-                </button>
-                <div className="flex-1 space-y-1 p-1.5">
-                  {apts.length === 0 && (
-                    <p className="px-1 py-2 text-[11px] text-muted-foreground">No appointments</p>
-                  )}
-                  {apts.map((a) => (
-                    <button
-                      key={a.aptNum}
-                      type="button"
-                      className="block w-full overflow-hidden rounded border bg-card px-1.5 py-1 text-left text-[11px] shadow-sm hover:shadow"
-                      style={{ borderLeft: `3px solid ${argbToHex(a.providerColor, "#2f6b4f")}` }}
-                      onClick={() => setSelectedApt(a.aptNum)}
-                    >
-                      <span className="font-medium">
-                        {new Date(a.aptDateTime).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}
-                      </span>
-                      <span className="ml-1 truncate">{a.patientName}</span>
-                      {a.providerAbbr && (
-                        <span className="ml-1 text-muted-foreground">· {a.providerAbbr}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+            {view === "week" && (
+              <ScheduleWeekView
+                week={week}
+                onOpenDay={(wdDate) => {
+                  setDate(wdDate);
+                  setView("day");
+                }}
+                onSelectAppointment={setSelectedApt}
+              />
+            )}
+          </div>
+          <AppointmentModulePanel
+            day={day}
+            dayStart={dayStart}
+            dayEnd={dayEnd}
+            openSlotMinutes={openSlotMinutes}
+            onOpenSlotMinutesChange={setOpenSlotMinutes}
+            onBookSlot={openBooking}
+            onSelectAppointment={setSelectedApt}
+          />
         </div>
       )}
 
