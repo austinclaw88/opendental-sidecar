@@ -40,6 +40,15 @@ public record PatientDetailDto
     public string GuarantorName { get; init; } = "";
     public long? PreferredProvider { get; init; }
     public string PreferredProviderName { get; init; } = "";
+    public int Gender { get; init; }
+    public string? ChartNumber { get; init; }
+    public long? BillingType { get; init; }
+    public string BillingTypeName { get; init; } = "";
+    public int TxtMsgOk { get; init; }
+    public int PreferContactMethod { get; init; }
+    public string? ApptModNote { get; init; }
+    public string? MedUrgNote { get; init; }
+    public string? FamFinUrgNote { get; init; }
     public List<InsuranceSummaryDto> InsurancePlans { get; init; } = [];
 }
 

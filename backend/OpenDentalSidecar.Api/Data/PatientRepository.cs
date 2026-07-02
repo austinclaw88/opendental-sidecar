@@ -48,11 +48,14 @@ public class PatientRepository : IPatientRepository
                    p.Birthdate, p.Address, p.Address2, p.City, p.State, p.Zip,
                    p.HmPhone, p.WkPhone, p.WirelessPhone, p.Email,
                    p.PatStatus, p.Guarantor, p.PriProv, p.ClinicNum,
+                   p.Gender, p.ChartNumber, p.BillingType, p.TxtMsgOk, p.PreferContactMethod,
+                   p.ApptModNote, p.MedUrgNote, p.FamFinUrgNote,
                    g.LName AS GuarLName, g.FName AS GuarFName,
-                   pri.Abbr AS PriProvAbbr
+                   pri.Abbr AS PriProvAbbr, bt.ItemName AS BillingTypeName
             FROM patient p
             LEFT JOIN patient g ON p.Guarantor = g.PatNum
             LEFT JOIN provider pri ON p.PriProv = pri.ProvNum
+            LEFT JOIN definition bt ON p.BillingType = bt.DefNum
             WHERE p.PatNum = @patNum;
             """;
         var p = await db.QueryFirstOrDefaultAsync(sql, new { patNum });
@@ -106,6 +109,15 @@ public class PatientRepository : IPatientRepository
             GuarantorName = p.GuarLName != null ? $"{p.GuarLName}, {p.GuarFName}" : "",
             PreferredProvider = (long)p.PriProv > 0 ? (long?)p.PriProv : null,
             PreferredProviderName = (string?)p.PriProvAbbr ?? "",
+            Gender = (int)p.Gender,
+            ChartNumber = (string?)p.ChartNumber,
+            BillingType = (long)p.BillingType > 0 ? (long?)p.BillingType : null,
+            BillingTypeName = (string?)p.BillingTypeName ?? "",
+            TxtMsgOk = (int)p.TxtMsgOk,
+            PreferContactMethod = (int)p.PreferContactMethod,
+            ApptModNote = (string?)p.ApptModNote,
+            MedUrgNote = (string?)p.MedUrgNote,
+            FamFinUrgNote = (string?)p.FamFinUrgNote,
             InsurancePlans = plans,
         };
     }

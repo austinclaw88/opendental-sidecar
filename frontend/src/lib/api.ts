@@ -49,6 +49,15 @@ export interface PatientDetail {
   guarantorName: string;
   preferredProvider?: number;
   preferredProviderName: string;
+  gender?: number;
+  chartNumber?: string;
+  billingType?: number;
+  billingTypeName?: string;
+  txtMsgOk?: number;
+  preferContactMethod?: number;
+  apptModNote?: string;
+  medUrgNote?: string;
+  famFinUrgNote?: string;
   insurancePlans: InsuranceSummary[];
 }
 
@@ -762,4 +771,18 @@ export const familyApi = {
     sendApi<{ updated: number }>("POST", `/patients/${patNum}/set-guarantor`),
   moveToFamily: (patNum: number, targetPatNum: number) =>
     sendApi<{ moved: boolean }>("POST", `/patients/${patNum}/move-to-family`, { targetPatNum }),
+// -- Benefits --------------------------------------------------
+export interface CategoryBenefit { category: string; percent: number; }
+export interface BenefitItem {
+  type: string; category?: string; percent?: number; amount?: number;
+  period: string; level: string;
+}
+export interface PlanBenefits {
+  patPlanNum: number; planNum: number; ordinal: number; carrierName: string;
+  annualMax?: number; annualMaxLevel?: string; annualMaxPeriod?: string;
+  deductible?: number; deductibleLevel?: string; deductiblePeriod?: string;
+  categories: CategoryBenefit[]; items: BenefitItem[];
+}
+export const benefitApi = {
+  getByPatient: (patNum: number) => fetchApi<PlanBenefits[]>(`/patients/${patNum}/benefits`),
 };

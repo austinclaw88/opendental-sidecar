@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FamilyMember, InsuranceCoverage, insuranceApi } from "@/lib/api";
 import { fmtDate } from "@/lib/format";
 import { InsuranceDialog } from "@/components/patient/insurance-dialog";
+import { BenefitsCard } from "@/components/patient/benefits-card";
 
 interface InsuranceTabProps {
   patNum: number;
@@ -154,6 +155,8 @@ export function InsuranceTab({ patNum, patientName, coverage, family, onChanged 
           ))}
         </div>
       )}
+
+      {coverage.length > 0 && <BenefitsCard patNum={patNum} coverage={coverage} />}
 
       <InsuranceDialog
         open={dialogOpen}
