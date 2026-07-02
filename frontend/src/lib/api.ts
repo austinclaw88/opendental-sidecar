@@ -765,6 +765,12 @@ export const claimQueueApi = {
     fetchApi<ClaimQueueItem[]>(`/claims?days=${days}${status ? `&status=${status}` : ""}`),
 };
 
+// -- Family management -----------------------------------------
+export const familyApi = {
+  setGuarantor: (patNum: number) =>
+    sendApi<{ updated: number }>("POST", `/patients/${patNum}/set-guarantor`),
+  moveToFamily: (patNum: number, targetPatNum: number) =>
+    sendApi<{ moved: boolean }>("POST", `/patients/${patNum}/move-to-family`, { targetPatNum }),
 // -- Benefits --------------------------------------------------
 export interface CategoryBenefit { category: string; percent: number; }
 export interface BenefitItem {

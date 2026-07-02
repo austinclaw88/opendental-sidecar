@@ -17,7 +17,8 @@ import { TakePaymentDialog } from "@/components/patient/take-payment-dialog";
 import { AddCommlogDialog } from "@/components/patient/add-commlog-dialog";
 import { AddAdjustmentDialog } from "@/components/patient/add-adjustment-dialog";
 import { InsuranceTab } from "@/components/patient/insurance-tab";
-import { AccountTab, FamilyTab, CommlogTab, RecallTab } from "@/components/patient/patient-tabs";
+import { AccountTab, CommlogTab, RecallTab } from "@/components/patient/patient-tabs";
+import { FamilyPanel } from "@/components/patient/family-panel";
 
 export default function PatientDetailPage() {
   const { patNum } = useParams<{ patNum: string }>();
@@ -236,7 +237,7 @@ export default function PatientDetailPage() {
           />
         </TabsContent>
         <TabsContent value="family" className="mt-4">
-          <FamilyTab family={family} currentPatNum={patient.patNum} />
+          <FamilyPanel family={family} currentPatNum={patient.patNum} onChanged={reload} />
         </TabsContent>
         <TabsContent value="commlog" className="mt-4">
           <CommlogTab commlogs={commlogs} />
