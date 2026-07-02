@@ -771,6 +771,7 @@ export const familyApi = {
     sendApi<{ updated: number }>("POST", `/patients/${patNum}/set-guarantor`),
   moveToFamily: (patNum: number, targetPatNum: number) =>
     sendApi<{ moved: boolean }>("POST", `/patients/${patNum}/move-to-family`, { targetPatNum }),
+  }
 // -- Benefits --------------------------------------------------
 export interface CategoryBenefit { category: string; percent: number; }
 export interface BenefitItem {
