@@ -23,6 +23,7 @@ builder.Services.AddScoped<IAccountRepository>(sp => new AccountRepository(connS
 builder.Services.AddScoped<ICommlogRepository>(sp => new CommlogRepository(connStr, sp.GetRequiredService<SchemaIntrospector>()));
 builder.Services.AddScoped<IRecallRepository>(_ => new RecallRepository(connStr));
 builder.Services.AddScoped<IInsuranceRepository>(sp => new InsuranceRepository(connStr, sp.GetRequiredService<SchemaIntrospector>()));
+builder.Services.AddScoped<IBenefitRepository>(_ => new BenefitRepository(connStr));
 
 // ── CORS (locked to frontend origin) ───────────────────────────
 var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:3000";
