@@ -764,3 +764,19 @@ export const claimQueueApi = {
   getQueue: (status?: string, days = 365) =>
     fetchApi<ClaimQueueItem[]>(`/claims?days=${days}${status ? `&status=${status}` : ""}`),
 };
+
+// -- Benefits --------------------------------------------------
+export interface CategoryBenefit { category: string; percent: number; }
+export interface BenefitItem {
+  type: string; category?: string; percent?: number; amount?: number;
+  period: string; level: string;
+}
+export interface PlanBenefits {
+  patPlanNum: number; planNum: number; ordinal: number; carrierName: string;
+  annualMax?: number; annualMaxLevel?: string; annualMaxPeriod?: string;
+  deductible?: number; deductibleLevel?: string; deductiblePeriod?: string;
+  categories: CategoryBenefit[]; items: BenefitItem[];
+}
+export const benefitApi = {
+  getByPatient: (patNum: number) => fetchApi<PlanBenefits[]>(`/patients/${patNum}/benefits`),
+};
