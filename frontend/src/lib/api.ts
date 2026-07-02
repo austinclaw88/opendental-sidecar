@@ -49,6 +49,15 @@ export interface PatientDetail {
   guarantorName: string;
   preferredProvider?: number;
   preferredProviderName: string;
+  gender?: number;
+  chartNumber?: string;
+  billingType?: number;
+  billingTypeName?: string;
+  txtMsgOk?: number;
+  preferContactMethod?: number;
+  apptModNote?: string;
+  medUrgNote?: string;
+  famFinUrgNote?: string;
   insurancePlans: InsuranceSummary[];
 }
 
